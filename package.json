@@ -19,7 +19,8 @@
     "ios:sync": "npm run build && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "ios:run": "npx cap run ios",
-    "admin:hash": "tsx scripts/generate-hash.ts"
+    "admin:hash": "tsx scripts/generate-hash.ts",
+    "migrate:catalog": "tsx scripts/migrate-catalog.ts"
   },
   "dependencies": {
     "@getbrevo/brevo": "^2.5.0",
