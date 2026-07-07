@@ -10,7 +10,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import Lightbox from "../components/ui/lightbox";
-import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Truck, ShieldCheck, RotateCcw, MapPin } from "lucide-react";
 
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,15 +49,15 @@ export default function ProductPage() {
     return (
       <div className="min-h-screen bg-transparent">
         <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="bg-gray-300 h-8 w-32 rounded mb-8"></div>
+          <div>
+            <div className="skeleton h-8 w-32 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              <div className="bg-gray-300 h-96 rounded-lg"></div>
+              <div className="skeleton h-96"></div>
               <div className="space-y-4">
-                <div className="bg-gray-300 h-8 rounded"></div>
-                <div className="bg-gray-300 h-6 rounded"></div>
-                <div className="bg-gray-300 h-4 rounded"></div>
-                <div className="bg-gray-300 h-12 rounded"></div>
+                <div className="skeleton h-8"></div>
+                <div className="skeleton h-6"></div>
+                <div className="skeleton h-4"></div>
+                <div className="skeleton h-12"></div>
               </div>
             </div>
           </div>
@@ -101,11 +101,11 @@ export default function ProductPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square rounded-lg overflow-hidden bg-white shadow-md">
+            <div className="aspect-square rounded-xl overflow-hidden surface-card image-zoom">
               <img
                 src={allImages[0]}
                 alt={product.name}
-                className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                className="w-full h-full object-cover cursor-pointer"
                 onClick={() => openLightbox(0)}
               />
             </div>
@@ -115,12 +115,13 @@ export default function ProductPage() {
                 {allImages.slice(1).map((image, index) => (
                   <div
                     key={index}
-                    className="aspect-square rounded-lg overflow-hidden bg-white shadow-md cursor-pointer hover:opacity-75 transition-opacity"
+                    className="aspect-square rounded-lg overflow-hidden surface-card cursor-pointer hover:ring-2 hover:ring-accent transition-shadow"
                     onClick={() => openLightbox(index + 1)}
                   >
                     <img
                       src={image}
                       alt={`${product.name} ${index + 2}`}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -169,19 +170,19 @@ export default function ProductPage() {
             </div>
 
             {/* Product Details */}
-            <div className="space-y-4 p-6 bg-white rounded-lg shadow-sm">
+            <div className="space-y-4 p-6 surface-card">
               <h3 className="text-lg font-semibold mb-4">{t("product.listingDetails")}</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center space-x-3">
-                  <span className="font-medium text-gray-700">{t("product.size")}</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{t("product.size")}</span>
                   <Badge variant="outline" className="text-base px-3 py-1">
                     {product.size}
                   </Badge>
                 </div>
                 
                 <div className="flex items-center space-x-3">
-                  <span className="font-medium text-gray-700">{t("product.status")}</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{t("product.status")}</span>
                   {product.inStock ? (
                     <Badge className="bg-green-600 text-white">{t("product.available")}</Badge>
                   ) : (
@@ -191,29 +192,29 @@ export default function ProductPage() {
                 
                 {product.color && product.category !== "Accessoires" && (
                   <div className="flex items-center space-x-3">
-                    <span className="font-medium text-gray-700">{t("product.color")}</span>
-                    <span className="text-gray-900">{product.color}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{t("product.color")}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{product.color}</span>
                   </div>
                 )}
                 
                 {product.condition && (
                   <div className="flex items-center space-x-3">
-                    <span className="font-medium text-gray-700">{t("product.condition")}</span>
-                    <span className="text-gray-900">{product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{t("product.condition")}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}</span>
                   </div>
                 )}
                 
                 {product.location && (
                   <div className="flex items-center space-x-3 sm:col-span-2">
-                    <span className="font-medium text-gray-700">{t("product.location")}</span>
-                    <span className="text-gray-900">📍 {product.location}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{t("product.location")}</span>
+                    <span className="text-gray-900 dark:text-gray-100 flex items-center gap-1"><MapPin className="h-4 w-4" /> {product.location}</span>
                   </div>
                 )}
                 
                 {product.sellerContact && (
                   <div className="flex items-center space-x-3 sm:col-span-2">
-                    <span className="font-medium text-gray-700">{t("product.sellerContact")}</span>
-                    <span className="text-gray-900">{product.sellerContact}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{t("product.sellerContact")}</span>
+                    <span className="text-gray-900 dark:text-gray-100">{product.sellerContact}</span>
                   </div>
                 )}
               </div>
@@ -222,23 +223,39 @@ export default function ProductPage() {
             {/* Add to Cart */}
             <Button
               onClick={handleAddToCart}
-              className="w-full btn-primary text-lg py-6"
+              className="w-full btn-primary text-lg py-6 shadow-lg"
               disabled={!product.inStock}
             >
               <ShoppingCart className="h-5 w-5 mr-2" />
               {product.inStock ? t("product.addToCart") : t("product.sold")}
             </Button>
 
+            {/* Reassurance block */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="surface-card p-3 flex flex-col items-center gap-1.5">
+                <ShieldCheck className="h-5 w-5 text-green-600" />
+                <span className="text-xs text-gray-700 dark:text-gray-300">Paiement sécurisé</span>
+              </div>
+              <div className="surface-card p-3 flex flex-col items-center gap-1.5">
+                <Truck className="h-5 w-5 text-blue-600" />
+                <span className="text-xs text-gray-700 dark:text-gray-300">Expédition rapide</span>
+              </div>
+              <div className="surface-card p-3 flex flex-col items-center gap-1.5">
+                <RotateCcw className="h-5 w-5 text-primary" />
+                <span className="text-xs text-gray-700 dark:text-gray-300">Retours acceptés</span>
+              </div>
+            </div>
+
             
           </div>
         </div>
 
         {/* Product Details */}
-        <Card className="mb-12">
-          <CardContent className="p-8">
+        <Card className="mb-12 glass-card border-0">
+          <CardContent className="p-6 md:p-8">
             <h2 className="text-2xl font-bold mb-6">{t("product.description")}</h2>
             <div className="prose max-w-none">
-              <p className="text-gray-700 leading-relaxed">
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
                 {product.description}
               </p>
               
@@ -247,7 +264,7 @@ export default function ProductPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <h3 className="font-semibold mb-3">{t("product.characteristics")}</h3>
-                  <ul className="space-y-2 text-gray-600">
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                     <li><span className="font-medium">{t("product.category")}</span> {product.category}</li>
                     <li><span className="font-medium">{t("product.size")}</span> {product.size}</li>
                     <li><span className="font-medium">{t("product.material")}</span> {t("product.premiumItalianLeather")}</li>
@@ -257,7 +274,7 @@ export default function ProductPage() {
                 
                 <div>
                   <h3 className="font-semibold mb-3">{t("product.maintenance")}</h3>
-                  <ul className="space-y-2 text-gray-600">
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-400">
                     <li>• {t("product.maintenanceTip1")}</li>
                     <li>• {t("product.maintenanceTip2")}</li>
                     <li>• {t("product.maintenanceTip3")}</li>

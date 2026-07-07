@@ -167,7 +167,7 @@ export default function Checkout() {
                           <FormItem>
                             <FormLabel>Prénom</FormLabel>
                             <FormControl>
-                              <Input {...field} className="bg-blue-50 dark:bg-gray-700" />
+                              <Input {...field} className="bg-white/80 dark:bg-gray-700" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -180,7 +180,7 @@ export default function Checkout() {
                           <FormItem>
                             <FormLabel>Nom</FormLabel>
                             <FormControl>
-                              <Input {...field} className="bg-blue-50 dark:bg-gray-700" />
+                              <Input {...field} className="bg-white/80 dark:bg-gray-700" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -195,7 +195,7 @@ export default function Checkout() {
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input type="email" {...field} className="bg-blue-50 dark:bg-gray-700" />
+                            <Input type="email" {...field} className="bg-white/80 dark:bg-gray-700" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -209,7 +209,7 @@ export default function Checkout() {
                         <FormItem>
                           <FormLabel>Téléphone</FormLabel>
                           <FormControl>
-                            <Input type="tel" {...field} className="bg-blue-50 dark:bg-gray-700" />
+                            <Input type="tel" {...field} className="bg-white/80 dark:bg-gray-700" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -223,7 +223,7 @@ export default function Checkout() {
                         <FormItem>
                           <FormLabel>Adresse complète</FormLabel>
                           <FormControl>
-                            <Input {...field} className="bg-blue-50 dark:bg-gray-700" />
+                            <Input {...field} className="bg-white/80 dark:bg-gray-700" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -238,7 +238,7 @@ export default function Checkout() {
                           <FormItem>
                             <FormLabel>Ville</FormLabel>
                             <FormControl>
-                              <Input {...field} className="bg-blue-50 dark:bg-gray-700" />
+                              <Input {...field} className="bg-white/80 dark:bg-gray-700" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -251,7 +251,7 @@ export default function Checkout() {
                           <FormItem>
                             <FormLabel>Code postal</FormLabel>
                             <FormControl>
-                              <Input {...field} className="bg-blue-50 dark:bg-gray-700" />
+                              <Input {...field} className="bg-white/80 dark:bg-gray-700" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -265,7 +265,7 @@ export default function Checkout() {
                             <FormLabel>Pays</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger id="country" className="bg-blue-50 dark:bg-gray-700">
+                                <SelectTrigger id="country" className="bg-white/80 dark:bg-gray-700">
                                   <SelectValue />
                                 </SelectTrigger>
                               </FormControl>
@@ -292,14 +292,14 @@ export default function Checkout() {
                         <FormItem>
                           <FormLabel>Notes (optionnel)</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="Instructions de livraison..." className="bg-blue-50 dark:bg-gray-700" />
+                            <Input {...field} placeholder="Instructions de livraison..." className="bg-white/80 dark:bg-gray-700" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <Button type="submit" className="w-full" disabled={isRedirecting}>
+                    <Button type="submit" className="w-full btn-primary text-base py-6 shadow-lg" disabled={isRedirecting}>
                       {isRedirecting ? "Redirection vers le paiement..." : "Procéder au paiement"}
                     </Button>
 
@@ -367,7 +367,7 @@ export default function Checkout() {
                   </div>
 
                   {totalAmount < FREE_SHIPPING_THRESHOLD && (
-                    <div className="text-sm text-gray-600 bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
+                    <div className="text-sm text-gray-600 dark:text-gray-300 bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
                       <p>
                         Ajoutez {(FREE_SHIPPING_THRESHOLD - totalAmount).toFixed(2)}€ pour bénéficier de la livraison gratuite.
                       </p>
@@ -376,9 +376,9 @@ export default function Checkout() {
                   
                   <Separator />
                   
-                  <div className="flex justify-between items-center font-bold text-lg">
+                  <div className="flex justify-between items-center font-bold text-xl bg-primary/5 dark:bg-primary/20 rounded-lg px-3 py-2">
                     <span>Total</span>
-                    <span>{finalTotal.toFixed(2)}€</span>
+                    <span className="text-primary">{finalTotal.toFixed(2)}€</span>
                   </div>
                 </div>
               </CardContent>

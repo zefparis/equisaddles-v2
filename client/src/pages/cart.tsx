@@ -24,11 +24,11 @@ export default function Cart() {
   const finalTotal = totalAmount + shippingCost;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/catalog" className="flex items-center text-gray-600 hover:text-primary mb-4">
+          <Link href="/catalog" className="flex items-center text-gray-600 dark:text-gray-400 hover:text-primary mb-4 transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             {t("cart.continue")}
           </Link>
@@ -44,10 +44,10 @@ export default function Cart() {
         </div>
 
         {items.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 glass-card max-w-lg mx-auto">
             <ShoppingCart className="h-24 w-24 mx-auto mb-6 text-gray-300" />
             <h2 className="text-2xl font-semibold mb-4">{t("cart.empty")}</h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
               {t("cart.emptyDescription")}
             </p>
             <Link href="/catalog">
@@ -110,7 +110,7 @@ export default function Cart() {
                   </div>
                   
                   {totalAmount < FREE_SHIPPING_THRESHOLD && (
-                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                    <div className="text-sm text-gray-600 dark:text-gray-300 bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
                       <p>
                         {t("cart.addForFreeShipping").replace("{amount}", (FREE_SHIPPING_THRESHOLD - totalAmount).toFixed(2))}
                       </p>

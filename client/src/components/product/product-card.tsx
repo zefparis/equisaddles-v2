@@ -5,7 +5,7 @@ import { Product } from "@shared/schema";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardFooter } from "../ui/card";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, MapPin } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
@@ -23,47 +23,52 @@ export default function ProductCard({ product }: ProductCardProps) {
   const hasDiscount = product.originalPrice && parseFloat(product.originalPrice) > parseFloat(product.price);
 
   return (
-    <Card className="group product-card glass-card gradient-border sheen-on-hover wow-hover-lift overflow-hidden">
+    <Card className="group product-card glass-card gradient-border overflow-hidden flex flex-col h-full">
       <Link href={`/product/${product.id}`}>
         <div className="relative image-zoom image-gradient">
           <img
             src={product.image}
             alt={product.name}
+            loading="lazy"
             className="w-full h-64 object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
 
-          {hasDiscount && (
-            <Badge className="absolute top-4 left-4 bg-red-500">
-              -
-              {Math.round(
-                ((parseFloat(product.originalPrice!) - parseFloat(product.price)) /
-                  parseFloat(product.originalPrice!)) *
-                  100
-              )}
-              %
-            </Badge>
-          )}
+          {/* Status + discount badges, consistent placement */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {hasDiscount && (
+              <Badge className="bg-red-600 text-white shadow-md">
+                -
+                {Math.round(
+                  ((parseFloat(product.originalPrice!) - parseFloat(product.price)) /
+                    parseFloat(product.originalPrice!)) *
+                    100
+                )}
+                %
+              </Badge>
+            )}
+          </div>
+          <div className="absolute top-3 right-3">
+            {product.inStock ? (
+              <Badge className="bg-green-600/90 text-white text-xs shadow-md">{t("product.available")}</Badge>
+            ) : (
+              <Badge variant="destructive" className="text-xs shadow-md">{t("product.sold")}</Badge>
+            )}
+          </div>
         </div>
       </Link>
 
-      <CardContent className="p-6">
+      <CardContent className="p-5 flex-1">
         <Link href={`/product/${product.id}`}>
-          <h3 className="text-xl font-semibold mb-2 hover:text-primary transition-colors text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-semibold mb-1 hover:text-primary transition-colors text-gray-900 dark:text-gray-100 line-clamp-1">
             {product.name}
           </h3>
         </Link>
-        <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">{product.description}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{product.description}</p>
         
         {/* Details produit - couleur, état, localisation */}
-        <div className="space-y-2 mb-4 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600 dark:text-gray-400">{t("product.size")} {product.size}</span>
-            {!product.inStock && (
-              <Badge variant="destructive" className="text-xs">{t("product.sold")}</Badge>
-            )}
-            {product.inStock && (
-              <Badge variant="default" className="text-xs bg-green-600">{t("product.available")}</Badge>
-            )}
+        <div className="space-y-1.5 mb-4 text-sm">
+          <div className="text-gray-600 dark:text-gray-400">
+            <span className="font-medium">{t("product.size")}</span> {product.size}
           </div>
           
           {product.color && product.category !== "Accessoires" && (
@@ -90,28 +95,27 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
           
           {product.location && (
-            <div className="text-gray-600 dark:text-gray-400">
-              📍 {product.location}
+            <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              {product.location}
             </div>
           )}
         </div>
         
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-primary">
-              {parseFloat(product.price).toFixed(2)} €
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-primary">
+            {parseFloat(product.price).toFixed(2)} €
+          </span>
+          {hasDiscount && (
+            <span className="text-base text-gray-500 line-through">
+              {parseFloat(product.originalPrice!).toFixed(2)} €
             </span>
-            {hasDiscount && (
-              <span className="text-lg text-gray-500 line-through">
-                {parseFloat(product.originalPrice!).toFixed(2)} €
-              </span>
-            )}
-          </div>
+          )}
         </div>
 
       </CardContent>
 
-      <CardFooter className="p-6 pt-0">
+      <CardFooter className="p-5 pt-0">
         <Button 
           onClick={handleAddToCart}
           className="w-full btn-primary"

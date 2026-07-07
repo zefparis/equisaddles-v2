@@ -238,21 +238,21 @@ export default function Catalog() {
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="bg-gray-300 h-64 rounded-lg mb-4"></div>
-                    <div className="bg-gray-300 h-6 rounded mb-2"></div>
-                    <div className="bg-gray-300 h-4 rounded"></div>
+                  <div key={i}>
+                    <div className="skeleton h-64 mb-4"></div>
+                    <div className="skeleton h-6 mb-2"></div>
+                    <div className="skeleton h-4"></div>
                   </div>
                 ))}
               </div>
             ) : sortedProducts?.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-gray-500 text-lg">Aucun produit trouvé</p>
+              <div className="text-center py-16 glass-card">
+                <p className="text-gray-500 dark:text-gray-400 text-lg">Aucun produit trouvé</p>
               </div>
             ) : (
               <>
                 <div className="mb-4">
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
                     {sortedProducts?.length} produit{sortedProducts?.length !== 1 ? 's' : ''} trouvé{sortedProducts?.length !== 1 ? 's' : ''}
                   </p>
                 </div>
@@ -266,16 +266,17 @@ export default function Catalog() {
                 ) : (
                   <div className="space-y-4">
                     {sortedProducts?.map((product) => (
-                      <div key={product.id} className="bg-white rounded-lg shadow-md p-6 flex gap-6">
+                      <div key={product.id} className="surface-card p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
                         <img
                           src={product.image}
                           alt={product.name}
-                          className="w-32 h-32 object-cover rounded-lg"
+                          loading="lazy"
+                          className="w-full sm:w-32 h-48 sm:h-32 object-cover rounded-lg flex-shrink-0"
                         />
                         <div className="flex-1">
-                          <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
-                          <p className="text-gray-600 mb-2">{product.description}</p>
-                          <div className="flex items-center justify-between">
+                          <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{product.name}</h3>
+                          <p className="text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{product.description}</p>
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <span className="text-2xl font-bold text-primary">
                               {parseFloat(product.price).toFixed(2)} €
                             </span>
