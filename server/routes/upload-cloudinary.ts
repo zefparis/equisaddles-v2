@@ -4,6 +4,7 @@ import { Readable } from "stream";
 import fs from "fs";
 import path from "path";
 import { v2 as cloudinary } from "cloudinary";
+import { requireAdmin } from "../auth";
 
 // Configuration Cloudinary
 if (process.env.CLOUDINARY_URL) {
@@ -84,8 +85,8 @@ export function registerCloudinaryUploadRoutes(app: Express) {
     (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
   );
 
-  // Route pour upload d'image unique
-  app.post('/api/upload/image', upload.single('image'), async (req, res) => {
+  // Route pour upload d'image unique (admin only)
+  app.post('/api/upload/image', requireAdmin, upload.single('image'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'Aucun fichier fourni' });
@@ -125,8 +126,8 @@ export function registerCloudinaryUploadRoutes(app: Express) {
     }
   });
 
-  // Route pour upload multiple d'images
-  app.post('/api/upload/images', upload.array('images', 10), async (req, res) => {
+  // Route pour upload multiple d'images (admin only)
+  app.post('/api/upload/images', requireAdmin, upload.array('images', 10), async (req, res) => {
     try {
       const files = req.files as Express.Multer.File[];
       
@@ -174,14 +175,27 @@ export function registerCloudinaryUploadRoutes(app: Express) {
     }
   });
 
-  // Route pour supprimer une image (uniquement Cloudinary)
-  app.delete('/api/upload/:publicId', async (req, res) => {
+  // Route pour supprimer une image (admin only, Cloudinary only)
+  app.delete('/api/upload/:publicId', requireAdmin, async (req, res) => {
     try {
       if (!isCloudinaryConfigured) {
         return res.status(501).json({ error: 'Cloudinary not configured' });
       }
 
       const { publicId } = req.params;
+
+      // Validation stricte du publicId : lettres, chiffres, tiret, underscore, slash uniquement
+      // Refuser .., backslash, URL complète, caractères de contrôle, publicId vide
+      if (!publicId || publicId.length === 0) {
+        return res.status(400).json({ error: 'publicId requis' });
+      }
+      if (publicId.includes('..') || publicId.includes('\\') || publicId.includes('://')) {
+        return res.status(400).json({ error: 'publicId invalide' });
+      }
+      if (!/^[a-zA-Z0-9_\/-]+$/.test(publicId)) {
+        return res.status(400).json({ error: 'publicId contient des caractères non autorisés' });
+      }
+
       const result = await cloudinary.uploader.destroy(`equi-saddles/${publicId}`);
       
       res.json({

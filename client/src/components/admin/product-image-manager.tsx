@@ -10,7 +10,8 @@ import { Checkbox } from "../ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Dialog } from "../ui/dialog";
-import { Upload, Download, Trash2, Star, StarOff, Image as ImageIcon } from "lucide-react";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../ui/alert-dialog";
+import { Upload, Trash2, Star, StarOff, Image as ImageIcon } from "lucide-react";
 import ImageUpload from "./image-upload";
 
 interface ProductImageManagerProps {
@@ -21,6 +22,7 @@ export default function ProductImageManager({ productId }: ProductImageManagerPr
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [deleteImageTarget, setDeleteImageTarget] = useState<number | null>(null);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [uploadForm, setUploadForm] = useState({
     url: "",
@@ -165,21 +167,6 @@ export default function ProductImageManager({ productId }: ProductImageManagerPr
         variant: "destructive",
       });
     }
-  };
-
-  const handleDownload = (image: ProductImage) => {
-    const filename = image.filename || image.url.split('/').pop() || 'image.jpg';
-    const link = document.createElement('a');
-    link.href = `/api/images/download/${filename}`;
-    link.download = image.originalName || filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Téléchargement démarré",
-      description: "Le téléchargement de l'image a commencé",
-    });
   };
 
   if (isLoading) {
@@ -336,14 +323,6 @@ export default function ProductImageManager({ productId }: ProductImageManagerPr
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDownload(image)}
-                      className="px-2"
-                    >
-                      <Download className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
                       onClick={() => setMainImageMutation.mutate(image.id)}
                       disabled={image.isMain || setMainImageMutation.isPending}
                       className="px-2"
@@ -354,9 +333,10 @@ export default function ProductImageManager({ productId }: ProductImageManagerPr
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => deleteImageMutation.mutate(image.id)}
+                    onClick={() => setDeleteImageTarget(image.id)}
                     disabled={deleteImageMutation.isPending}
                     className="px-2"
+                    title="Supprimer"
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -374,6 +354,33 @@ export default function ProductImageManager({ productId }: ProductImageManagerPr
           <p className="text-sm text-gray-400 mt-2">Cliquez sur "Ajouter une image" pour commencer</p>
         </div>
       ) : null}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteImageTarget} onOpenChange={(open) => { if (!open) setDeleteImageTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette image ? Cette action est définitive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteImageTarget !== null) {
+                  deleteImageMutation.mutate(deleteImageTarget);
+                  setDeleteImageTarget(null);
+                }
+              }}
+              disabled={deleteImageMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteImageMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

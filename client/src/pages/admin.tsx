@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth } from "../contexts/AdminAuthContext";
 import AdminLogin from "../components/admin/AdminLogin";
@@ -18,10 +18,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "../components/ui/alert-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, Star, FileText } from "lucide-react";
+import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, Star, FileText, Search, Eye, Copy, Filter, RotateCcw, ChevronLeft, ChevronRight, AlertCircle, PackageSearch } from "lucide-react";
 import ProductImageManager from "../components/admin/product-image-manager";
 import ImageUpload from "../components/admin/image-upload";
 import InvoiceGenerator from "../components/admin/invoice-generator";
@@ -62,17 +63,28 @@ export default function Admin() {
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  // Search, filters, sort, pagination
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "selles" | "accessoires">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "disponibles" | "vendus">("all");
+  const [filterCondition, setFilterCondition] = useState<"all" | "neuf" | "occasion">("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterFeatured, setFilterFeatured] = useState<"all" | "vedette" | "non-vedette">("all");
+  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "price-asc" | "price-desc" | "recent" | "old">("recent");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "product" | "gallery"; id: number; name: string } | null>(null);
+
   // Scroll to top when page loads
   useEffect(() => {
     scrollToTop();
   }, []);
 
   // Queries
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+  const { data: products, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
 
-  const { data: galleryImages, isLoading: galleryLoading } = useQuery<GalleryImage[]>({
+  const { data: galleryImages, isLoading: galleryLoading, isError: galleryError, refetch: refetchGallery } = useQuery<GalleryImage[]>({
     queryKey: ["/api/gallery"],
   });
 
@@ -142,6 +154,155 @@ export default function Admin() {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
+
+  // Derived data: available categories from products
+  const availableCategories = useMemo(() => {
+    if (!products) return [];
+    const cats = products.map((p) => p.category).filter((v, i, arr) => arr.indexOf(v) === i).filter(Boolean) as string[];
+    return cats.sort();
+  }, [products]);
+
+  // Filtered, sorted, paginated products
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+
+    let result = [...products];
+
+    // Search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((p) =>
+        [p.name, p.category, p.color, p.size, p.location]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(q))
+      );
+    }
+
+    // Filter: type
+    if (filterType === "selles") {
+      result = result.filter((p) => p.category !== "Accessoires");
+    } else if (filterType === "accessoires") {
+      result = result.filter((p) => p.category === "Accessoires");
+    }
+
+    // Filter: status
+    if (filterStatus === "disponibles") {
+      result = result.filter((p) => p.inStock !== false);
+    } else if (filterStatus === "vendus") {
+      result = result.filter((p) => p.inStock === false);
+    }
+
+    // Filter: condition
+    if (filterCondition === "neuf") {
+      result = result.filter((p) => p.condition === "neuve");
+    } else if (filterCondition === "occasion") {
+      result = result.filter((p) => p.condition === "occasion");
+    }
+
+    // Filter: category
+    if (filterCategory !== "all") {
+      result = result.filter((p) => p.category === filterCategory);
+    }
+
+    // Filter: featured
+    if (filterFeatured === "vedette") {
+      result = result.filter((p) => p.featured === true);
+    } else if (filterFeatured === "non-vedette") {
+      result = result.filter((p) => p.featured !== true);
+    }
+
+    // Sort
+    switch (sortBy) {
+      case "name-asc":
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-desc":
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case "price-asc":
+        result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+        break;
+      case "price-desc":
+        result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+        break;
+      case "recent":
+        result.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        break;
+      case "old":
+        result.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+        break;
+    }
+
+    return result;
+  }, [products, searchQuery, filterType, filterStatus, filterCondition, filterCategory, filterFeatured, sortBy]);
+
+  // Reset to page 1 when filters/search/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterType, filterStatus, filterCondition, filterCategory, filterFeatured, sortBy]);
+
+  const productsPerPage = useMemo(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 640) return 12;
+    return 24;
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedProducts = useMemo(() => {
+    const start = (safeCurrentPage - 1) * productsPerPage;
+    return filteredProducts.slice(start, start + productsPerPage);
+  }, [filteredProducts, safeCurrentPage, productsPerPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    scrollToTop();
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setFilterType("all");
+    setFilterStatus("all");
+    setFilterCondition("all");
+    setFilterCategory("all");
+    setFilterFeatured("all");
+    setSortBy("recent");
+  };
+
+  const hasActiveFilters = searchQuery || filterType !== "all" || filterStatus !== "all" || filterCondition !== "all" || filterCategory !== "all" || filterFeatured !== "all";
+
+  const handleDuplicateProduct = (product: Product) => {
+    setEditingProduct(null);
+    productForm.reset({
+      name: `Copie de ${product.name}`,
+      category: product.category,
+      subcategory: product.subcategory || "",
+      size: product.size,
+      price: product.price,
+      originalPrice: product.originalPrice || undefined,
+      description: product.description,
+      image: product.image,
+      images: [],
+      inStock: true,
+      featured: false,
+      location: product.location || "",
+      sellerContact: product.sellerContact || "",
+      color: product.color || "",
+      condition: product.condition || "",
+      customSubcategory: product.customSubcategory || "",
+    });
+    setSelectedImageFile(null);
+    setShowProductDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === "product") {
+      deleteProductMutation.mutate(deleteTarget.id);
+    } else if (deleteTarget.type === "gallery") {
+      deleteGalleryImageMutation.mutate(deleteTarget.id);
+    }
+    setDeleteTarget(null);
+  };
 
   // Forms
   const productForm = useForm<ProductFormData>({
@@ -383,6 +544,92 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Rechercher par nom, catégorie, couleur, taille, localisation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Filters toolbar */}
+            <div className="admin-filters-toolbar flex flex-wrap gap-2 items-center">
+              <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
+                <SelectTrigger className="w-auto min-w-[120px]"><SelectValue placeholder="Type" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous types</SelectItem>
+                  <SelectItem value="selles">Selles</SelectItem>
+                  <SelectItem value="accessoires">Accessoires</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+                <SelectTrigger className="w-auto min-w-[120px]"><SelectValue placeholder="Statut" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous statuts</SelectItem>
+                  <SelectItem value="disponibles">Disponibles</SelectItem>
+                  <SelectItem value="vendus">Vendus</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCondition} onValueChange={(v) => setFilterCondition(v as typeof filterCondition)}>
+                <SelectTrigger className="w-auto min-w-[120px]"><SelectValue placeholder="État" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous états</SelectItem>
+                  <SelectItem value="neuf">Neuf</SelectItem>
+                  <SelectItem value="occasion">Occasion</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-auto min-w-[120px]"><SelectValue placeholder="Catégorie" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes catégories</SelectItem>
+                  {availableCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterFeatured} onValueChange={(v) => setFilterFeatured(v as typeof filterFeatured)}>
+                <SelectTrigger className="w-auto min-w-[120px]"><SelectValue placeholder="Vedette" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous</SelectItem>
+                  <SelectItem value="vedette">Vedette uniquement</SelectItem>
+                  <SelectItem value="non-vedette">Non vedette</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <SelectTrigger className="w-auto min-w-[140px]"><SelectValue placeholder="Tri" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Plus récents</SelectItem>
+                  <SelectItem value="old">Plus anciens</SelectItem>
+                  <SelectItem value="name-asc">Nom A → Z</SelectItem>
+                  <SelectItem value="name-desc">Nom Z → A</SelectItem>
+                  <SelectItem value="price-asc">Prix croissant</SelectItem>
+                  <SelectItem value="price-desc">Prix décroissant</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {hasActiveFilters && (
+                <Button variant="outline" size="sm" onClick={handleResetFilters} title="Réinitialiser les filtres">
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Réinitialiser
+                </Button>
+              )}
+            </div>
+
+            {/* Counter */}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {filteredProducts.length} annonce{filteredProducts.length > 1 ? "s" : ""} affichée{filteredProducts.length > 1 ? "s" : ""} sur {products?.length || 0}
+            </p>
+
+            {/* Content states */}
             {productsLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
@@ -393,87 +640,172 @@ export default function Admin() {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="admin-product-grid">
-                {products?.map((product) => (
-                  <Card key={product.id} className="admin-product-card">
-                    <div className="relative">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="admin-product-image"
-                      />
-                      <Badge className="absolute top-2 left-2 bg-blue-500 text-white text-xs">
-                        {product.category === "Accessoires" ? product.subcategory : product.category}
-                      </Badge>
-                      {product.inStock ? (
-                        <Badge className="absolute top-2 right-2 bg-green-500 text-white text-xs">
-                          Disponible
-                        </Badge>
-                      ) : (
-                        <Badge className="absolute top-2 right-2 bg-red-500 text-white text-xs">
-                          Vendu
-                        </Badge>
-                      )}
-                    </div>
-                    <CardContent className="admin-product-content">
-                      <h3 className="admin-product-title">{product.name}</h3>
-                      <div className="space-y-1 text-sm">
-                        <p className="admin-product-meta">
-                          {product.category === "Accessoires" ? 
-                            (product.subcategory === "Autre" && product.customSubcategory ? 
-                              product.customSubcategory : product.subcategory) 
-                            : product.category} - Taille {product.size}
-                        </p>
-                        {product.color && product.category !== "Accessoires" && (
-                          <p className="text-gray-600 dark:text-gray-400">
-                            Couleur: {product.color}
-                          </p>
-                        )}
-                        {product.condition && (
-                          <p className="text-gray-600 dark:text-gray-400">
-                            État: {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
-                          </p>
-                        )}
-                        {product.location && (
-                          <p className="text-gray-600 dark:text-gray-400">
-                            📍 {product.location}
-                          </p>
-                        )}
-                      </div>
-                      <p className="admin-product-price text-primary font-semibold mt-2">
-                        {parseFloat(product.price).toFixed(2)} €
-                      </p>
-                      <div className="admin-product-actions">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => { setImagesProductId(product.id); setImagesDialogOpen(true); }}
-                          className="admin-action-button"
-                        >
-                          <Images className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditProduct(product)}
-                          className="admin-action-button"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteProductMutation.mutate(product.id)}
-                          className="admin-action-button text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+            ) : productsError ? (
+              <div className="text-center py-16">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+                <h3 className="text-lg font-semibold mb-2">Erreur de chargement</h3>
+                <p className="text-gray-600 mb-4">Impossible de charger les annonces.</p>
+                <Button onClick={() => refetchProducts()} variant="outline">
+                  Réessayer
+                </Button>
               </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <PackageSearch className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {hasActiveFilters ? "Aucun résultat" : "Aucune annonce"}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {hasActiveFilters
+                    ? "Aucune annonce ne correspond à votre recherche. Essayez de modifier les filtres."
+                    : "Commencez par créer votre première annonce."}
+                </p>
+                {hasActiveFilters && (
+                  <Button onClick={handleResetFilters} variant="outline">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Réinitialiser les filtres
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="admin-product-grid">
+                  {paginatedProducts.map((product) => (
+                    <Card key={product.id} className="admin-product-card">
+                      <div className="relative">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          loading="lazy"
+                          className="admin-product-image"
+                        />
+                        <Badge className="absolute top-2 left-2 bg-blue-500 text-white text-xs">
+                          {product.category === "Accessoires" ? product.subcategory : product.category}
+                        </Badge>
+                        {product.inStock ? (
+                          <Badge className="absolute top-2 right-2 bg-green-500 text-white text-xs">
+                            Disponible
+                          </Badge>
+                        ) : (
+                          <Badge className="absolute top-2 right-2 bg-red-500 text-white text-xs">
+                            Vendu
+                          </Badge>
+                        )}
+                        {product.featured && (
+                          <Badge className="absolute bottom-2 left-2 bg-yellow-500 text-white text-xs">
+                            <Star className="h-3 w-3 mr-1" />
+                            Vedette
+                          </Badge>
+                        )}
+                      </div>
+                      <CardContent className="admin-product-content">
+                        <h3 className="admin-product-title">{product.name}</h3>
+                        <div className="space-y-1 text-sm">
+                          <p className="admin-product-meta">
+                            {product.category === "Accessoires" ?
+                              (product.subcategory === "Autre" && product.customSubcategory ?
+                                product.customSubcategory : product.subcategory)
+                              : product.category} - Taille {product.size}
+                          </p>
+                          {product.color && product.category !== "Accessoires" && (
+                            <p className="text-gray-600 dark:text-gray-400">
+                              Couleur: {product.color}
+                            </p>
+                          )}
+                          {product.condition && (
+                            <p className="text-gray-600 dark:text-gray-400">
+                              État: {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
+                            </p>
+                          )}
+                          {product.location && (
+                            <p className="text-gray-600 dark:text-gray-400">
+                              📍 {product.location}
+                            </p>
+                          )}
+                        </div>
+                        <p className="admin-product-price text-primary font-semibold mt-2">
+                          {parseFloat(product.price).toFixed(2)} €
+                        </p>
+                        <div className="admin-product-actions">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/product/${product.id}`, "_blank")}
+                            className="admin-action-button"
+                            title="Voir l'annonce publique"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setImagesProductId(product.id); setImagesDialogOpen(true); }}
+                            className="admin-action-button"
+                            title="Gérer les images"
+                          >
+                            <Images className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditProduct(product)}
+                            className="admin-action-button"
+                            title="Modifier"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicateProduct(product)}
+                            className="admin-action-button"
+                            title="Dupliquer"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteTarget({ type: "product", id: product.id, name: product.name })}
+                            className="admin-action-button text-red-500 hover:text-red-700"
+                            title="Supprimer"
+                            disabled={deleteProductMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(safeCurrentPage - 1)}
+                      disabled={safeCurrentPage <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Précédent
+                    </Button>
+                    <span className="text-sm text-gray-600 dark:text-gray-400 px-2">
+                      Page {safeCurrentPage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(safeCurrentPage + 1)}
+                      disabled={safeCurrentPage >= totalPages}
+                    >
+                      Suivant
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
@@ -497,6 +829,21 @@ export default function Admin() {
                   </div>
                 ))}
               </div>
+            ) : galleryError ? (
+              <div className="text-center py-16">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+                <h3 className="text-lg font-semibold mb-2">Erreur de chargement</h3>
+                <p className="text-gray-600 mb-4">Impossible de charger la galerie.</p>
+                <Button onClick={() => refetchGallery()} variant="outline">
+                  Réessayer
+                </Button>
+              </div>
+            ) : galleryImages?.length === 0 ? (
+              <div className="text-center py-16">
+                <Images className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-semibold mb-2">Aucune image</h3>
+                <p className="text-gray-600 mb-4">La galerie est vide. Ajoutez votre première image.</p>
+              </div>
             ) : (
               <div className="admin-product-grid">
                 {galleryImages?.map((image) => (
@@ -505,6 +852,7 @@ export default function Admin() {
                       <img
                         src={image.url}
                         alt={image.alt}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute top-2 right-2">
@@ -519,8 +867,10 @@ export default function Admin() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deleteGalleryImageMutation.mutate(image.id)}
+                          onClick={() => setDeleteTarget({ type: "gallery", id: image.id, name: image.alt })}
                           className="admin-action-button text-red-500 hover:text-red-700 w-full"
+                          disabled={deleteGalleryImageMutation.isPending}
+                          title="Supprimer"
                         >
                           <Trash2 className="h-3 w-3 mr-2" />
                           Supprimer
@@ -1033,6 +1383,30 @@ export default function Admin() {
             onOpenChange={setInvoiceDialogOpen}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer <strong>{deleteTarget?.name}</strong> ?
+                Cette action est définitive et ne peut pas être annulée.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={deleteProductMutation.isPending || deleteGalleryImageMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleteProductMutation.isPending || deleteGalleryImageMutation.isPending
+                  ? "Suppression..." : "Supprimer"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
