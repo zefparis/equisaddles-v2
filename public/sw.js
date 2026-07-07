@@ -1,5 +1,5 @@
 // Service Worker for Equi Saddles PWA
-const CACHE_NAME = 'equi-saddles-v10-network-first';
+const CACHE_NAME = 'equi-saddles-v11-network-first-nav';
 const urlsToCache = [
   '/',
   '/catalog',
@@ -75,6 +75,37 @@ self.addEventListener('fetch', (event) => {
   // Skip API requests from caching
   if (isApiRequest) {
     console.log('[SW] Skipping API request:', event.request.url);
+    return;
+  }
+
+  // Network First strategy for navigation requests (HTML documents)
+  // This prevents stale cached HTML from referencing non-existent JS bundles after a new deploy
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return caches.match('/').then((fallback) => {
+              return fallback || new Response(
+                '<!DOCTYPE html><html><head><title>Hors ligne - Equi Saddles</title></head><body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;"><h1>Hors ligne</h1><p>Vous êtes actuellement hors ligne. Vérifiez votre connexion Internet.</p><button onclick="window.location.reload()">Réessayer</button></body></html>',
+                { headers: { 'Content-Type': 'text/html' } }
+              );
+            });
+          });
+        })
+    );
     return;
   }
 
