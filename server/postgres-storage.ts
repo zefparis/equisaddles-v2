@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { products, galleryImages, productImages, orders, type Product, type InsertProduct, type ProductImage, type InsertProductImage, type GalleryImage, type InsertGalleryImage, type Order, type InsertOrder } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import type { IStorage } from "./storage";
 
 /**
@@ -110,16 +110,39 @@ export class PostgresStorage implements IStorage {
   // ==================== GALLERY ====================
 
   async getGalleryImages(): Promise<GalleryImage[]> {
-    return await db.select().from(galleryImages);
+    return await db.select().from(galleryImages).orderBy(asc(galleryImages.sortOrder), desc(galleryImages.createdAt));
+  }
+
+  async getActiveGalleryImages(): Promise<GalleryImage[]> {
+    return await db.select().from(galleryImages).where(eq(galleryImages.active, true)).orderBy(asc(galleryImages.sortOrder), desc(galleryImages.createdAt));
   }
 
   async getGalleryImagesByCategory(category: string): Promise<GalleryImage[]> {
-    return await db.select().from(galleryImages).where(eq(galleryImages.category, category));
+    return await db.select().from(galleryImages).where(eq(galleryImages.category, category)).orderBy(asc(galleryImages.sortOrder), desc(galleryImages.createdAt));
   }
 
   async createGalleryImage(insertImage: InsertGalleryImage): Promise<GalleryImage> {
     const result = await db.insert(galleryImages).values(insertImage).returning();
     return result[0];
+  }
+
+  async updateGalleryImage(id: number, updateImage: Partial<InsertGalleryImage>): Promise<GalleryImage | undefined> {
+    const result = await db
+      .update(galleryImages)
+      .set({ ...updateImage, updatedAt: new Date() })
+      .where(eq(galleryImages.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async reorderGalleryImages(items: { id: number; sortOrder: number }[]): Promise<boolean> {
+    for (const item of items) {
+      await db
+        .update(galleryImages)
+        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+        .where(eq(galleryImages.id, item.id));
+    }
+    return true;
   }
 
   async deleteGalleryImage(id: number): Promise<boolean> {

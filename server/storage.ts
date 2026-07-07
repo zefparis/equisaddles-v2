@@ -18,8 +18,11 @@ export interface IStorage {
 
   // Gallery
   getGalleryImages(): Promise<GalleryImage[]>;
+  getActiveGalleryImages(): Promise<GalleryImage[]>;
   getGalleryImagesByCategory(category: string): Promise<GalleryImage[]>;
   createGalleryImage(image: InsertGalleryImage): Promise<GalleryImage>;
+  updateGalleryImage(id: number, image: Partial<InsertGalleryImage>): Promise<GalleryImage | undefined>;
+  reorderGalleryImages(items: { id: number; sortOrder: number }[]): Promise<boolean>;
   deleteGalleryImage(id: number): Promise<boolean>;
 
   // Orders

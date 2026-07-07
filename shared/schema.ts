@@ -26,10 +26,19 @@ export const products = pgTable("products", {
 
 export const galleryImages = pgTable("gallery_images", {
   id: serial("id").primaryKey(),
+  mediaType: text("media_type").notNull().default("image"), // "image" | "video" | "youtube" | "vimeo"
   url: text("url").notNull(),
-  alt: text("alt").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  publicId: text("public_id"),
+  title: text("title"),
+  description: text("description"),
+  alt: text("alt").notNull().default(""), // kept for backward compat
   category: text("category").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  featured: boolean("featured").notNull().default(false),
+  active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const productImages = pgTable("product_images", {
@@ -83,6 +92,7 @@ export const insertProductSchema = createInsertSchema(products).omit({
 export const insertGalleryImageSchema = createInsertSchema(galleryImages).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertProductImageSchema = createInsertSchema(productImages).omit({

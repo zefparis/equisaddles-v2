@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, Star, FileText, Search, Eye, Copy, Filter, RotateCcw, ChevronLeft, ChevronRight, AlertCircle, PackageSearch } from "lucide-react";
+import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, Star, FileText, Search, Eye, Copy, Filter, RotateCcw, ChevronLeft, ChevronRight, AlertCircle, PackageSearch, Play, Video, Youtube, GripVertical } from "lucide-react";
 import ProductImageManager from "../components/admin/product-image-manager";
 import ImageUpload from "../components/admin/image-upload";
 import InvoiceGenerator from "../components/admin/invoice-generator";
@@ -73,6 +73,16 @@ export default function Admin() {
   const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "price-asc" | "price-desc" | "recent" | "old">("recent");
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "product" | "gallery"; id: number; name: string } | null>(null);
+
+  // Gallery mediatheque state
+  const [galleryMediaType, setGalleryMediaType] = useState<"image" | "video" | "youtube" | "vimeo">("image");
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryImage | null>(null);
+  const [gallerySearch, setGallerySearch] = useState("");
+  const [galleryFilterType, setGalleryFilterType] = useState<string>("all");
+  const [galleryFilterCategory, setGalleryFilterCategory] = useState<string>("all");
+  const [galleryExternalUrl, setGalleryExternalUrl] = useState("");
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [galleryPreview, setGalleryPreview] = useState<{ url: string; thumbnailUrl?: string; mediaType: string } | null>(null);
 
   // Scroll to top when page loads
   useEffect(() => {
@@ -136,11 +146,40 @@ export default function Admin() {
     mutationFn: (data: GalleryFormData) => apiRequest("POST", "/api/gallery", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
-      toast({ title: "Image ajoutée avec succès" });
+      toast({ title: "Média ajouté avec succès" });
       setShowGalleryDialog(false);
+      setGalleryPreview(null);
+      setGalleryExternalUrl("");
     },
     onError: (error) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateGalleryImageMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<GalleryFormData> }) =>
+      apiRequest("PUT", `/api/gallery/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
+      toast({ title: "Média modifié avec succès" });
+      setShowGalleryDialog(false);
+      setEditingGalleryItem(null);
+      setGalleryPreview(null);
+      setGalleryExternalUrl("");
+    },
+    onError: (error) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const reorderGalleryMutation = useMutation({
+    mutationFn: (items: { id: number; sortOrder: number }[]) =>
+      apiRequest("POST", "/api/gallery/reorder", { items }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
+    },
+    onError: (error) => {
+      toast({ title: "Erreur réorganisation", description: error.message, variant: "destructive" });
     },
   });
 
@@ -148,7 +187,7 @@ export default function Admin() {
     mutationFn: (id: number) => apiRequest("DELETE", `/api/gallery/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
-      toast({ title: "Image supprimée avec succès" });
+      toast({ title: "Média supprimé avec succès" });
     },
     onError: (error) => {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
@@ -304,6 +343,110 @@ export default function Admin() {
     setDeleteTarget(null);
   };
 
+  // Gallery handlers
+  const handleNewGalleryItem = (mediaType: "image" | "video" | "youtube" | "vimeo") => {
+    setEditingGalleryItem(null);
+    setGalleryMediaType(mediaType);
+    setGalleryExternalUrl("");
+    setGalleryPreview(null);
+    setSelectedImageFile(null);
+    galleryForm.reset({
+      mediaType,
+      url: "",
+      thumbnailUrl: undefined,
+      publicId: undefined,
+      title: "",
+      description: "",
+      alt: "",
+      category: "Obstacle",
+      sortOrder: 0,
+      featured: false,
+      active: true,
+    });
+    setShowGalleryDialog(true);
+  };
+
+  const handleEditGalleryItem = (item: GalleryImage) => {
+    setEditingGalleryItem(item);
+    setGalleryMediaType(item.mediaType as "image" | "video" | "youtube" | "vimeo");
+    setGalleryExternalUrl(item.mediaType === "youtube" || item.mediaType === "vimeo" ? item.url : "");
+    setGalleryPreview({ url: item.url, thumbnailUrl: item.thumbnailUrl || undefined, mediaType: item.mediaType });
+    setSelectedImageFile(null);
+    galleryForm.reset({
+      mediaType: item.mediaType as any,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl || undefined,
+      publicId: item.publicId || undefined,
+      title: item.title || "",
+      description: item.description || "",
+      alt: item.alt || "",
+      category: item.category,
+      sortOrder: item.sortOrder || 0,
+      featured: item.featured || false,
+      active: item.active !== false,
+    });
+    setShowGalleryDialog(true);
+  };
+
+  const handleDuplicateGalleryItem = (item: GalleryImage) => {
+    setEditingGalleryItem(null);
+    setGalleryMediaType(item.mediaType as "image" | "video" | "youtube" | "vimeo");
+    setGalleryExternalUrl(item.mediaType === "youtube" || item.mediaType === "vimeo" ? item.url : "");
+    setGalleryPreview(null);
+    setSelectedImageFile(null);
+    galleryForm.reset({
+      mediaType: item.mediaType as any,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl || undefined,
+      publicId: undefined,
+      title: `Copie de ${item.title || item.alt || ""}`,
+      description: item.description || "",
+      alt: item.alt || "",
+      category: item.category,
+      sortOrder: 0,
+      featured: false,
+      active: true,
+    });
+    setShowGalleryDialog(true);
+  };
+
+  const handleGalleryMove = (id: number, direction: "up" | "down") => {
+    if (!galleryImages) return;
+    const sorted = [...galleryImages].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    const index = sorted.findIndex((g) => g.id === id);
+    if (index === -1) return;
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === sorted.length - 1) return;
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    const items = sorted.map((g, i) => ({ id: g.id, sortOrder: i }));
+    // Swap
+    const temp = items[index].sortOrder;
+    items[index].sortOrder = items[swapIndex].sortOrder;
+    items[swapIndex].sortOrder = temp;
+    reorderGalleryMutation.mutate(items);
+  };
+
+  // Filtered gallery images
+  const filteredGalleryImages = useMemo(() => {
+    if (!galleryImages) return [];
+    let result = [...galleryImages];
+    if (gallerySearch.trim()) {
+      const q = gallerySearch.toLowerCase().trim();
+      result = result.filter((g) =>
+        [g.title, g.alt, g.category, g.description]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(q))
+      );
+    }
+    if (galleryFilterType !== "all") {
+      result = result.filter((g) => g.mediaType === galleryFilterType);
+    }
+    if (galleryFilterCategory !== "all") {
+      result = result.filter((g) => g.category === galleryFilterCategory);
+    }
+    return result.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }, [galleryImages, gallerySearch, galleryFilterType, galleryFilterCategory]);
+
   // Forms
   const productForm = useForm<ProductFormData>({
     resolver: zodResolver(insertProductSchema),
@@ -328,9 +471,17 @@ export default function Admin() {
   const galleryForm = useForm<GalleryFormData>({
     resolver: zodResolver(insertGalleryImageSchema),
     defaultValues: {
+      mediaType: "image",
       url: "",
+      thumbnailUrl: undefined,
+      publicId: undefined,
+      title: "",
+      description: "",
       alt: "",
       category: "Obstacle",
+      sortOrder: 0,
+      featured: false,
+      active: true,
     },
   });
 
@@ -385,28 +536,59 @@ export default function Admin() {
 
   const handleGallerySubmit = async (data: GalleryFormData) => {
     setUploadingImage(true);
-    
+    setGalleryUploading(true);
+
     try {
-      let imageUrl = data.url;
-      
-      // Si un fichier d'image a été sélectionné, l'uploader d'abord
-      if (selectedImageFile) {
-        imageUrl = await uploadImage(selectedImageFile);
-        data.url = imageUrl;
+      if (galleryMediaType === "youtube" || galleryMediaType === "vimeo") {
+        // Resolve external URL
+        const resp = await fetch("/api/upload/external-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: galleryExternalUrl }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error || "URL invalide");
+        }
+        const result = await resp.json();
+        data.url = result.url;
+        data.thumbnailUrl = result.thumbnailUrl;
+        data.mediaType = result.mediaType;
+      } else if (selectedImageFile) {
+        // Upload file (image or video)
+        const formData = new FormData();
+        formData.append("media", selectedImageFile);
+        const resp = await fetch("/api/upload/media", {
+          method: "POST",
+          body: formData,
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.error || "Upload échoué");
+        }
+        const result = await resp.json();
+        data.url = result.url;
+        data.publicId = result.publicId;
+        data.thumbnailUrl = result.thumbnailUrl;
+        data.mediaType = result.mediaType;
       }
-      
-      createGalleryImageMutation.mutate(data);
-      
-      // Reset l'état du fichier après soumission
+
+      if (editingGalleryItem) {
+        updateGalleryImageMutation.mutate({ id: editingGalleryItem.id, data });
+      } else {
+        createGalleryImageMutation.mutate(data);
+      }
+
       setSelectedImageFile(null);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erreur",
-        description: "Erreur lors de l'upload de l'image",
+        description: error.message || "Erreur lors de l'upload",
         variant: "destructive",
       });
     } finally {
       setUploadingImage(false);
+      setGalleryUploading(false);
     }
   };
 
@@ -809,15 +991,79 @@ export default function Admin() {
             )}
           </TabsContent>
 
-          {/* Gallery Tab */}
+          {/* Gallery Tab — Médiathèque */}
           <TabsContent value="gallery" className="space-y-4 sm:space-y-6">
             <div className="admin-section-header">
-              <h2 className="admin-section-title text-gray-900 dark:text-gray-100">Gestion de la galerie</h2>
-              <Button onClick={() => setShowGalleryDialog(true)} className="btn-primary admin-add-button">
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle image
-              </Button>
+              <h2 className="admin-section-title text-gray-900 dark:text-gray-100">Médiathèque</h2>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => handleNewGalleryItem("image")} className="btn-primary admin-add-button">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Image
+                </Button>
+                <Button onClick={() => handleNewGalleryItem("video")} className="btn-primary admin-add-button">
+                  <Video className="h-4 w-4 mr-2" />
+                  Vidéo
+                </Button>
+                <Button onClick={() => handleNewGalleryItem("youtube")} className="btn-primary admin-add-button">
+                  <Youtube className="h-4 w-4 mr-2" />
+                  YouTube
+                </Button>
+                <Button onClick={() => handleNewGalleryItem("vimeo")} className="btn-primary admin-add-button">
+                  <Play className="h-4 w-4 mr-2" />
+                  Vimeo
+                </Button>
+              </div>
             </div>
+
+            {/* Search + Filters */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher par titre..."
+                  value={gallerySearch}
+                  onChange={(e) => setGallerySearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={galleryFilterType} onValueChange={setGalleryFilterType}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous types</SelectItem>
+                  <SelectItem value="image">Images</SelectItem>
+                  <SelectItem value="video">Vidéos</SelectItem>
+                  <SelectItem value="youtube">YouTube</SelectItem>
+                  <SelectItem value="vimeo">Vimeo</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={galleryFilterCategory} onValueChange={setGalleryFilterCategory}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes catégories</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(gallerySearch || galleryFilterType !== "all" || galleryFilterCategory !== "all") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setGallerySearch(""); setGalleryFilterType("all"); setGalleryFilterCategory("all"); }}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* Counter */}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {filteredGalleryImages.length} média{filteredGalleryImages.length !== 1 ? "s" : ""} affiché{filteredGalleryImages.length !== 1 ? "s" : ""} sur {galleryImages?.length || 0}
+            </p>
 
             {galleryLoading ? (
               <div className="admin-product-grid">
@@ -833,47 +1079,127 @@ export default function Admin() {
               <div className="text-center py-16">
                 <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
                 <h3 className="text-lg font-semibold mb-2">Erreur de chargement</h3>
-                <p className="text-gray-600 mb-4">Impossible de charger la galerie.</p>
+                <p className="text-gray-600 mb-4">Impossible de charger la médiathèque.</p>
                 <Button onClick={() => refetchGallery()} variant="outline">
                   Réessayer
                 </Button>
               </div>
-            ) : galleryImages?.length === 0 ? (
+            ) : filteredGalleryImages.length === 0 ? (
               <div className="text-center py-16">
                 <Images className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-semibold mb-2">Aucune image</h3>
-                <p className="text-gray-600 mb-4">La galerie est vide. Ajoutez votre première image.</p>
+                <h3 className="text-lg font-semibold mb-2">{galleryImages?.length === 0 ? "Aucun média" : "Aucun résultat"}</h3>
+                <p className="text-gray-600 mb-4">
+                  {galleryImages?.length === 0
+                    ? "La médiathèque est vide. Ajoutez votre premier média."
+                    : "Aucun média ne correspond à votre recherche."}
+                </p>
               </div>
             ) : (
               <div className="admin-product-grid">
-                {galleryImages?.map((image) => (
-                  <Card key={image.id} className="admin-product-card">
+                {filteredGalleryImages.map((item) => (
+                  <Card key={item.id} className="admin-product-card">
                     <div className="relative aspect-square overflow-hidden">
                       <img
-                        src={image.url}
-                        alt={image.alt}
+                        src={item.thumbnailUrl || item.url}
+                        alt={item.title || item.alt || ""}
                         loading="lazy"
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute top-2 right-2">
-                        <Badge className="bg-black bg-opacity-70 text-white text-xs">
-                          {image.category}
+                      {/* Media type badge */}
+                      <div className="absolute top-2 left-2">
+                        <Badge className="bg-black bg-opacity-70 text-white text-xs flex items-center gap-1">
+                          {item.mediaType === "video" && <Video className="h-3 w-3" />}
+                          {item.mediaType === "youtube" && <Youtube className="h-3 w-3" />}
+                          {item.mediaType === "vimeo" && <Play className="h-3 w-3" />}
+                          {item.mediaType === "image" && <Images className="h-3 w-3" />}
+                          <span className="capitalize">{item.mediaType}</span>
                         </Badge>
                       </div>
+                      {/* Category badge */}
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-black bg-opacity-70 text-white text-xs">
+                          {item.category}
+                        </Badge>
+                      </div>
+                      {/* Play overlay for videos */}
+                      {(item.mediaType === "video" || item.mediaType === "youtube" || item.mediaType === "vimeo") && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="bg-black bg-opacity-50 rounded-full p-3">
+                            <Play className="h-6 w-6 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      {/* Featured badge */}
+                      {item.featured && (
+                        <div className="absolute bottom-2 left-2">
+                          <Badge className="bg-yellow-500 text-white text-xs flex items-center gap-1">
+                            <Star className="h-3 w-3" />
+                            Vedette
+                          </Badge>
+                        </div>
+                      )}
+                      {/* Inactive badge */}
+                      {item.active === false && (
+                        <div className="absolute bottom-2 right-2">
+                          <Badge className="bg-gray-500 text-white text-xs">
+                            Inactif
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                     <CardContent className="admin-product-content">
-                      <p className="admin-product-title">{image.alt}</p>
+                      <p className="admin-product-title">{item.title || item.alt || "Sans titre"}</p>
+                      {item.description && (
+                        <p className="text-xs text-gray-500 line-clamp-2 mb-2">{item.description}</p>
+                      )}
                       <div className="admin-product-actions">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setDeleteTarget({ type: "gallery", id: image.id, name: image.alt })}
-                          className="admin-action-button text-red-500 hover:text-red-700 w-full"
-                          disabled={deleteGalleryImageMutation.isPending}
-                          title="Supprimer"
+                          onClick={() => handleGalleryMove(item.id, "up")}
+                          className="admin-action-button"
+                          title="Monter"
+                          disabled={reorderGalleryMutation.isPending}
                         >
-                          <Trash2 className="h-3 w-3 mr-2" />
-                          Supprimer
+                          <ChevronLeft className="h-4 w-4 rotate-90" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleGalleryMove(item.id, "down")}
+                          className="admin-action-button"
+                          title="Descendre"
+                          disabled={reorderGalleryMutation.isPending}
+                        >
+                          <ChevronRight className="h-4 w-4 rotate-90" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditGalleryItem(item)}
+                          className="admin-action-button"
+                          title="Modifier"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateGalleryItem(item)}
+                          className="admin-action-button"
+                          title="Dupliquer"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteTarget({ type: "gallery", id: item.id, name: item.title || item.alt || "ce média" })}
+                          className="admin-action-button text-red-500 hover:text-red-700"
+                          title="Supprimer"
+                          disabled={deleteGalleryImageMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardContent>
@@ -1289,37 +1615,135 @@ export default function Admin() {
           </DialogContent>
         </Dialog>
 
-        {/* Gallery Dialog */}
+        {/* Gallery Dialog — Médiathèque */}
         <Dialog open={showGalleryDialog} onOpenChange={setShowGalleryDialog}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto mx-4 sm:mx-0">
             <DialogHeader>
-              <DialogTitle>Nouvelle image</DialogTitle>
+              <DialogTitle>{editingGalleryItem ? "Modifier le média" : "Ajouter un média"}</DialogTitle>
               <DialogDescription>
-                Ajoutez une image à la galerie
+                {galleryMediaType === "image" && "Ajoutez une image à la médiathèque"}
+                {galleryMediaType === "video" && "Ajoutez une vidéo (MP4, WebM, MOV)"}
+                {galleryMediaType === "youtube" && "Ajoutez une vidéo YouTube via son URL"}
+                {galleryMediaType === "vimeo" && "Ajoutez une vidéo Vimeo via son URL"}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={galleryForm.handleSubmit(handleGallerySubmit)} className="space-y-4">
-              <ImageUpload
-                onImageSelect={({ url, file }) => {
-                  galleryForm.setValue("url", url);
-                  setSelectedImageFile(file);
-                }}
-                currentImage={galleryForm.watch("url")}
-                placeholder="Sélectionner une image pour la galerie"
-              />
+              {/* Media input depends on type */}
+              {galleryMediaType === "image" && (
+                <ImageUpload
+                  onImageSelect={({ url, file }) => {
+                    galleryForm.setValue("url", url);
+                    setSelectedImageFile(file);
+                    setGalleryPreview({ url, mediaType: "image" });
+                  }}
+                  currentImage={galleryForm.watch("url")}
+                  placeholder="Sélectionner une image"
+                />
+              )}
+              {galleryMediaType === "video" && (
+                <div>
+                  <Label htmlFor="videoFile">Fichier vidéo (MP4, WebM, MOV — max 50 Mo)</Label>
+                  <Input
+                    id="videoFile"
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setSelectedImageFile(file);
+                        galleryForm.setValue("url", "");
+                        setGalleryPreview({ url: URL.createObjectURL(file), mediaType: "video" });
+                      }
+                    }}
+                  />
+                </div>
+              )}
+              {(galleryMediaType === "youtube" || galleryMediaType === "vimeo") && (
+                <div>
+                  <Label htmlFor="externalUrl">
+                    {galleryMediaType === "youtube" ? "URL YouTube" : "URL Vimeo"}
+                  </Label>
+                  <Input
+                    id="externalUrl"
+                    placeholder={galleryMediaType === "youtube" ? "https://www.youtube.com/watch?v=..." : "https://vimeo.com/..."}
+                    value={galleryExternalUrl}
+                    onChange={(e) => setGalleryExternalUrl(e.target.value)}
+                  />
+                  {galleryExternalUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={async () => {
+                        try {
+                          const resp = await fetch("/api/upload/external-video", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ url: galleryExternalUrl }),
+                          });
+                          if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.error || "URL invalide");
+                          }
+                          const result = await resp.json();
+                          setGalleryPreview({ url: result.url, thumbnailUrl: result.thumbnailUrl, mediaType: result.mediaType });
+                          galleryForm.setValue("url", result.url);
+                          galleryForm.setValue("thumbnailUrl", result.thumbnailUrl);
+                          galleryForm.setValue("mediaType", result.mediaType);
+                        } catch (err: any) {
+                          toast({ title: "Erreur", description: err.message, variant: "destructive" });
+                        }
+                      }}
+                    >
+                      Prévisualiser
+                    </Button>
+                  )}
+                </div>
+              )}
 
+              {/* Preview */}
+              {galleryPreview && (
+                <div className="relative aspect-video rounded-lg overflow-hidden border">
+                  <img
+                    src={galleryPreview.thumbnailUrl || galleryPreview.url}
+                    alt="Aperçu"
+                    className="w-full h-full object-cover"
+                  />
+                  {(galleryPreview.mediaType === "video" || galleryPreview.mediaType === "youtube" || galleryPreview.mediaType === "vimeo") && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-black bg-opacity-50 rounded-full p-3">
+                        <Play className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Title */}
               <div>
-                <Label htmlFor="alt">Texte alternatif *</Label>
+                <Label htmlFor="galleryTitle">Titre</Label>
                 <Input
-                  id="alt"
-                  {...galleryForm.register("alt")}
-                  placeholder="Description de l'image"
+                  id="galleryTitle"
+                  {...galleryForm.register("title")}
+                  placeholder="Titre du média"
                 />
               </div>
 
+              {/* Description */}
+              <div>
+                <Label htmlFor="galleryDescription">Description</Label>
+                <Textarea
+                  id="galleryDescription"
+                  {...galleryForm.register("description")}
+                  placeholder="Description (optionnelle)"
+                  rows={2}
+                />
+              </div>
+
+              {/* Category */}
               <div>
                 <Label htmlFor="galleryCategory">Catégorie *</Label>
-                {/* FIX: label for/id - Added id to SelectTrigger for accessibility */}
                 <Select
                   value={galleryForm.watch("category")}
                   onValueChange={(value) => galleryForm.setValue("category", value)}
@@ -1337,12 +1761,36 @@ export default function Admin() {
                 </Select>
               </div>
 
+              {/* Featured + Active */}
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="galleryFeatured"
+                    checked={galleryForm.watch("featured")}
+                    onCheckedChange={(checked) => galleryForm.setValue("featured", checked === true)}
+                  />
+                  <Label htmlFor="galleryFeatured" className="text-sm cursor-pointer">Vedette</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="galleryActive"
+                    checked={galleryForm.watch("active")}
+                    onCheckedChange={(checked) => galleryForm.setValue("active", checked === true)}
+                  />
+                  <Label htmlFor="galleryActive" className="text-sm cursor-pointer">Actif</Label>
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
                 <Button type="button" variant="outline" onClick={() => setShowGalleryDialog(false)} className="w-full sm:w-auto">
                   Annuler
                 </Button>
-                <Button type="submit" className="btn-primary w-full sm:w-auto">
-                  Ajouter
+                <Button
+                  type="submit"
+                  className="btn-primary w-full sm:w-auto"
+                  disabled={galleryUploading || createGalleryImageMutation.isPending || updateGalleryImageMutation.isPending}
+                >
+                  {galleryUploading ? "Upload..." : editingGalleryItem ? "Enregistrer" : "Ajouter"}
                 </Button>
               </div>
             </form>

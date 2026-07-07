@@ -2,14 +2,21 @@ import { useState, useEffect } from "react";
 import { Button } from "./button";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
+export interface LightboxMedia {
+  url: string;
+  mediaType: "image" | "video" | "youtube" | "vimeo";
+  thumbnailUrl?: string;
+  title?: string;
+}
+
 interface LightboxProps {
-  images: string[];
+  media: LightboxMedia[];
   currentIndex: number;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function Lightbox({ images, currentIndex, isOpen, onClose }: LightboxProps) {
+export default function Lightbox({ media, currentIndex, isOpen, onClose }: LightboxProps) {
   const [index, setIndex] = useState(currentIndex);
 
   useEffect(() => {
@@ -39,14 +46,16 @@ export default function Lightbox({ images, currentIndex, isOpen, onClose }: Ligh
   }, [isOpen, index]);
 
   const goToPrevious = () => {
-    setIndex(prev => (prev > 0 ? prev - 1 : images.length - 1));
+    setIndex(prev => (prev > 0 ? prev - 1 : media.length - 1));
   };
 
   const goToNext = () => {
-    setIndex(prev => (prev < images.length - 1 ? prev + 1 : 0));
+    setIndex(prev => (prev < media.length - 1 ? prev + 1 : 0));
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || media.length === 0) return null;
+
+  const current = media[index];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center lightbox-overlay">
@@ -62,7 +71,7 @@ export default function Lightbox({ images, currentIndex, isOpen, onClose }: Ligh
         </Button>
 
         {/* Previous Button */}
-        {images.length > 1 && (
+        {media.length > 1 && (
           <Button
             variant="ghost"
             size="sm"
@@ -73,15 +82,49 @@ export default function Lightbox({ images, currentIndex, isOpen, onClose }: Ligh
           </Button>
         )}
 
-        {/* Image */}
-        <img
-          src={images[index]}
-          alt=""
-          className="max-w-full max-h-full object-contain"
-        />
+        {/* Media content */}
+        {current.mediaType === "image" && (
+          <img
+            src={current.url}
+            alt={current.title || ""}
+            className="max-w-full max-h-full object-contain"
+          />
+        )}
+
+        {current.mediaType === "video" && (
+          <video
+            src={current.url}
+            poster={current.thumbnailUrl}
+            controls
+            preload="metadata"
+            className="max-w-full max-h-full"
+          />
+        )}
+
+        {current.mediaType === "youtube" && (
+          <iframe
+            src={`${current.url}?autoplay=0&rel=0`}
+            title={current.title || "YouTube video"}
+            className="max-w-full max-h-full w-full h-full"
+            style={{ aspectRatio: "16/9" }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        )}
+
+        {current.mediaType === "vimeo" && (
+          <iframe
+            src={`${current.url}?autoplay=0`}
+            title={current.title || "Vimeo video"}
+            className="max-w-full max-h-full w-full h-full"
+            style={{ aspectRatio: "16/9" }}
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+          />
+        )}
 
         {/* Next Button */}
-        {images.length > 1 && (
+        {media.length > 1 && (
           <Button
             variant="ghost"
             size="sm"
@@ -92,13 +135,21 @@ export default function Lightbox({ images, currentIndex, isOpen, onClose }: Ligh
           </Button>
         )}
 
-        {/* Image Counter */}
-        {images.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm">
-            {index + 1} / {images.length}
-          </div>
-        )}
+        {/* Title + Counter */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center">
+          {current.title && (
+            <p className="text-white bg-black bg-opacity-50 px-4 py-1 rounded-full text-sm mb-1">
+              {current.title}
+            </p>
+          )}
+          {media.length > 1 && (
+            <span className="text-white bg-black bg-opacity-50 px-3 py-1 rounded-full text-sm">
+              {index + 1} / {media.length}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+

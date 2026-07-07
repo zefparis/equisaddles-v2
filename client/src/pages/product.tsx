@@ -9,7 +9,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
-import Lightbox from "../components/ui/lightbox";
+import Lightbox, { type LightboxMedia } from "../components/ui/lightbox";
 import { ArrowLeft, ShoppingCart, Truck, ShieldCheck, RotateCcw, MapPin } from "lucide-react";
 
 export default function ProductPage() {
@@ -288,7 +288,7 @@ export default function ProductPage() {
 
         {/* Lightbox */}
         <Lightbox
-          images={allImages}
+          media={allImages.map((url) => ({ url, mediaType: "image" as const }))}
           currentIndex={lightboxIndex}
           isOpen={lightboxOpen}
           onClose={() => setLightboxOpen(false)}

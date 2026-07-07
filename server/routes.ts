@@ -156,15 +156,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gallery API
   app.get("/api/gallery", async (req, res) => {
     try {
-      const { category } = req.query;
+      const { category, active } = req.query;
       let images;
-      
-      if (category) {
+
+      if (active === 'true') {
+        images = await storage.getActiveGalleryImages();
+      } else if (category) {
         images = await storage.getGalleryImagesByCategory(category as string);
       } else {
         images = await storage.getGalleryImages();
       }
-      
+
       res.json(images);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching gallery images: " + error.message });
@@ -178,6 +180,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(image);
     } catch (error: any) {
       res.status(400).json({ message: "Error creating gallery image: " + error.message });
+    }
+  });
+
+  app.put("/api/gallery/:id", requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertGalleryImageSchema.partial().parse(req.body);
+      const image = await storage.updateGalleryImage(parseInt(req.params.id), validatedData);
+      if (!image) {
+        return res.status(404).json({ message: "Gallery image not found" });
+      }
+      res.json(image);
+    } catch (error: any) {
+      res.status(400).json({ message: "Error updating gallery image: " + error.message });
+    }
+  });
+
+  app.post("/api/gallery/reorder", requireAdmin, async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!Array.isArray(items)) {
+        return res.status(400).json({ message: "items must be an array" });
+      }
+      const validated = z.array(z.object({ id: z.number(), sortOrder: z.number() })).parse(items);
+      const success = await storage.reorderGalleryImages(validated);
+      res.json({ success });
+    } catch (error: any) {
+      res.status(400).json({ message: "Error reordering gallery: " + error.message });
     }
   });
 
