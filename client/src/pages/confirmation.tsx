@@ -26,29 +26,18 @@ export default function Confirmation() {
     const params = new URLSearchParams(window.location.search);
     const sessionIdParam = params.get('session_id');
     
-    console.log('🔍 Confirmation page loaded');
-    console.log('🔍 Full URL:', window.location.href);
-    console.log('🔍 session_id from URL:', sessionIdParam);
-    
-    // Ne traiter qu'une seule fois
     if (sessionIdParam && !processedRef.current) {
       processedRef.current = true;
       setSessionId(sessionIdParam);
       
-      console.log('🛒 Clearing cart...');
       clearCart();
       
       // Force cart clear via localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('equi-saddles-cart');
-        console.log('✅ Cart cleared from localStorage');
       }
       
-      // Vérifier et créer la commande si elle n'existe pas
-      console.log('📞 Calling verify-session API with session:', sessionIdParam);
       verifyAndCreateOrder(sessionIdParam);
-    } else if (!sessionIdParam) {
-      console.error('❌ No session_id found in URL!');
     }
   }, [location, clearCart]);
 
@@ -59,11 +48,9 @@ export default function Confirmation() {
       
       if (data.success) {
         setOrderCreated(true);
-        console.log('✅ Order verified/created:', data.orderId);
       }
     } catch (error) {
-      console.error('Error verifying order:', error);
-      // La commande sera créée par le webhook Stripe en production
+      // Order will be created by Stripe webhook in production
     }
   };
 

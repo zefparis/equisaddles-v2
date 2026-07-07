@@ -5,7 +5,7 @@ import { Product } from "@shared/schema";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardFooter } from "../ui/card";
-import { ShoppingCart, Star } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 
 interface ProductCardProps {
   product: Product;
@@ -109,14 +109,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
 
-        <div className="flex items-center mb-4">
-          <div className="flex text-yellow-400 text-sm">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-4 w-4 fill-current" />
-            ))}
-          </div>
-          <span className="ml-2 text-gray-500 text-sm">(24 {t("product.reviews")})</span>
-        </div>
       </CardContent>
 
       <CardFooter className="p-6 pt-0">

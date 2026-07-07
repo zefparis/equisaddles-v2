@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,10 +15,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import { Alert, AlertDescription } from "../components/ui/alert";
-// Header, Footer et ChatWidget sont maintenant dans App.tsx
-import { Truck, Mail, Calculator, Info } from "lucide-react";
-// Plus besoin des imports Stripe pour les éléments intégrés
+import { Truck, Mail, Calculator, Info, Lock, ShieldCheck, Phone } from "lucide-react";
+import { Link } from "wouter";
 import { apiRequest } from "../lib/queryClient";
+import { calculateShipping, FREE_SHIPPING_THRESHOLD } from "@shared/shipping";
 
 // Plus besoin de charger Stripe côté client avec cette approche
 
@@ -49,64 +49,25 @@ const checkoutSchema = z.object({
 
 type CheckoutFormData = z.infer<typeof checkoutSchema>;
 
-// Composant pour afficher l'état de la commande
-function OrderSummaryCard({ stripeUrl, t }: { stripeUrl?: string; t: (key: string) => string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>✅</span> {t("checkout.orderCreatedTitle")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          {t("checkout.orderCreatedMessage")}
-        </p>
-        
-        {stripeUrl && (
-          <div className="mb-4">
-            <Button 
-              onClick={() => window.open(stripeUrl, '_blank', 'noopener,noreferrer')}
-              className="w-full"
-            >
-              {t("checkout.openPayment")}
-            </Button>
-          </div>
-        )}
-        
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <span>🔒</span>
-            <span>{t("checkout.securePayment")}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span>📧</span>
-            <span>{t("checkout.emailConfirmationText")}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function Checkout() {
   const { t } = useLanguage();
-  const { items, totalAmount, clearCart } = useCart();
+  const { items, totalAmount } = useCart();
   const { toast } = useToast();
-  const [stripeUrl, setStripeUrl] = useState("");
-  const [orderCreated, setOrderCreated] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   // Scroll to top when page loads
   useEffect(() => {
     scrollToTop();
   }, []);
 
-  // Redirection si le panier est vide
+  // Redirection si le panier est vide — use wouter Link navigation instead of window.location
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && !isRedirecting) {
       window.location.href = "/catalog";
     }
-  }, [items]);
+  }, [items, isRedirecting]);
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -118,33 +79,28 @@ export default function Checkout() {
       address: "",
       city: "",
       postalCode: "",
-      country: "BE",
+      country: "FR",
       notes: "",
     },
   });
 
+  // Watch country to compute shipping live
+  const watchedCountry = form.watch("country");
+  const shippingCost = useMemo(() => {
+    return calculateShipping(totalAmount, watchedCountry || "FR");
+  }, [totalAmount, watchedCountry]);
+  const finalTotal = totalAmount + shippingCost;
 
   const onSubmit = async (data: CheckoutFormData) => {
-    try {
-      // Créer l'intention de paiement avec les données du client
-      const orderData = {
-        ...data,
-        items: items.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        total: totalAmount,
-      };
+    if (isRedirecting) return;
+    setSubmitError("");
+    setIsRedirecting(true);
 
+    try {
       const response = await apiRequest("POST", "/api/create-payment-intent", {
         items: items.map(item => ({
           id: item.id,
-          name: item.name,
-          price: item.price,
           quantity: item.quantity,
-          imageUrl: item.image && (item.image.startsWith('http://') || item.image.startsWith('https://')) 
-            ? item.image : null
         })),
         customerInfo: {
           firstName: data.firstName,
@@ -156,39 +112,21 @@ export default function Checkout() {
           postalCode: data.postalCode,
           country: data.country,
           notes: data.notes || "",
-          items: items.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-          }))
         }
       });
 
       const result = await response.json();
       
-      // Redirection vers Stripe Checkout dans un nouvel onglet
       if (result.clientSecret) {
-        // Ouvrir dans un nouvel onglet pour éviter les problèmes d'iframe
-        const stripeWindow = window.open(result.clientSecret, '_blank', 'noopener,noreferrer');
-        
-        if (!stripeWindow) {
-          // Si le popup est bloqué, essayer une redirection directe
-          window.location.href = result.clientSecret;
-        } else {
-          // Afficher un message d'information à l'utilisateur
-          toast({
-            title: "Redirection vers Stripe",
-            description: "Votre paiement s'ouvre dans un nouvel onglet. Veuillez compléter le paiement là-bas.",
-          });
-          setOrderCreated(true);
-          setStripeUrl(result.clientSecret);
-        }
+        // Same-tab redirect to Stripe Checkout
+        window.location.href = result.clientSecret;
       } else {
         throw new Error("URL de paiement non reçue");
       }
     } catch (error: any) {
-      console.error("Checkout error:", error);
+      console.error("Checkout error:", error.message);
+      setSubmitError(error.message || "Impossible de créer la commande. Veuillez réessayer.");
+      setIsRedirecting(false);
       toast({
         title: "Erreur",
         description: error.message || "Impossible de créer la commande",
@@ -197,7 +135,7 @@ export default function Checkout() {
     }
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && !isRedirecting) {
     return null;
   }
 
@@ -332,17 +270,13 @@ export default function Checkout() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="BE">Belgique</SelectItem>
                                 <SelectItem value="FR">France</SelectItem>
+                                <SelectItem value="BE">Belgique</SelectItem>
                                 <SelectItem value="NL">Pays-Bas</SelectItem>
                                 <SelectItem value="DE">Allemagne</SelectItem>
                                 <SelectItem value="LU">Luxembourg</SelectItem>
-                                <SelectItem value="CH">Suisse</SelectItem>
                                 <SelectItem value="ES">Espagne</SelectItem>
                                 <SelectItem value="IT">Italie</SelectItem>
-                                <SelectItem value="GB">Royaume-Uni</SelectItem>
-                                <SelectItem value="US">États-Unis</SelectItem>
-                                <SelectItem value="CA">Canada</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -365,10 +299,21 @@ export default function Checkout() {
                       )}
                     />
 
-                    {!orderCreated && (
-                      <Button type="submit" className="w-full">
-                        Procéder au paiement
-                      </Button>
+                    <Button type="submit" className="w-full" disabled={isRedirecting}>
+                      {isRedirecting ? "Redirection vers le paiement..." : "Procéder au paiement"}
+                    </Button>
+
+                    {isRedirecting && (
+                      <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        <span className="inline-block animate-spin mr-2">⏳</span>
+                        Redirection vers Stripe en cours...
+                      </div>
+                    )}
+
+                    {submitError && !isRedirecting && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{submitError}</AlertDescription>
+                      </Alert>
                     )}
                   </form>
                 </Form>
@@ -407,18 +352,59 @@ export default function Checkout() {
                     <span>{totalAmount.toFixed(2)}€</span>
                   </div>
                   
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      <span>Livraison</span>
+                    </div>
+                    <span>
+                      {shippingCost === 0 ? (
+                        <span className="text-green-600 font-semibold">Gratuite</span>
+                      ) : (
+                        `${shippingCost.toFixed(2)}€`
+                      )}
+                    </span>
+                  </div>
+
+                  {totalAmount < FREE_SHIPPING_THRESHOLD && (
+                    <div className="text-sm text-gray-600 bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
+                      <p>
+                        Ajoutez {(FREE_SHIPPING_THRESHOLD - totalAmount).toFixed(2)}€ pour bénéficier de la livraison gratuite.
+                      </p>
+                    </div>
+                  )}
+                  
                   <Separator />
                   
                   <div className="flex justify-between items-center font-bold text-lg">
                     <span>Total</span>
-                    <span>{totalAmount.toFixed(2)}€</span>
+                    <span>{finalTotal.toFixed(2)}€</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* État de la commande */}
-            {orderCreated && <OrderSummaryCard stripeUrl={stripeUrl} t={t} />}
+            {/* Trust badges */}
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                  <span>Paiement sécurisé par Stripe</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <Truck className="h-4 w-4 text-blue-600" />
+                  <Link href="/delivery" className="hover:underline">Information livraison</Link>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <Info className="h-4 w-4 text-gray-600" />
+                  <Link href="/returns" className="hover:underline">Politique de retour</Link>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <Link href="/contact" className="hover:underline">Besoin d'aide ? Contactez-nous</Link>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

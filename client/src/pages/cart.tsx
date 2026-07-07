@@ -9,6 +9,7 @@ import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 import CartItem from "../components/cart/cart-item";
 import { ShoppingCart, ArrowLeft, Truck } from "lucide-react";
+import { calculateShipping, FREE_SHIPPING_THRESHOLD } from "@shared/shipping";
 
 export default function Cart() {
   const { items, totalAmount, totalItems, clearCart } = useCart();
@@ -19,7 +20,7 @@ export default function Cart() {
     scrollToTop();
   }, []);
 
-  const shippingCost = totalAmount >= 100 ? 0 : 12.90;
+  const shippingCost = calculateShipping(totalAmount, "FR");
   const finalTotal = totalAmount + shippingCost;
 
   return (
@@ -108,10 +109,10 @@ export default function Cart() {
                     </div>
                   </div>
                   
-                  {totalAmount < 100 && (
+                  {totalAmount < FREE_SHIPPING_THRESHOLD && (
                     <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
                       <p>
-                        {t("cart.addForFreeShipping").replace("{amount}", (100 - totalAmount).toFixed(2))}
+                        {t("cart.addForFreeShipping").replace("{amount}", (FREE_SHIPPING_THRESHOLD - totalAmount).toFixed(2))}
                       </p>
                     </div>
                   )}

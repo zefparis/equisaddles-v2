@@ -10,7 +10,7 @@ import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
 import { Separator } from "../components/ui/separator";
 import Lightbox from "../components/ui/lightbox";
-import { ArrowLeft, ShoppingCart, Star } from "lucide-react";
+import { ArrowLeft, ShoppingCart } from "lucide-react";
 
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
@@ -217,16 +217,6 @@ export default function ProductPage() {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Rating */}
-            <div className="flex items-center space-x-2">
-              <div className="flex text-yellow-400">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 fill-current" />
-                ))}
-              </div>
-              <span className="text-gray-600">(24 {t("product.reviews")})</span>
             </div>
 
             {/* Add to Cart */}

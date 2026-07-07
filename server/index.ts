@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
-import { registerRoutes } from "./routes";
+import { registerRoutes, registerStripeWebhook } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupSession } from "./auth";
 import "./auth/types";
@@ -9,6 +9,11 @@ const app = express();
 
 // Serve static files from public directory FIRST
 app.use(express.static(path.join(process.cwd(), 'public')));
+
+// Stripe webhook MUST be registered BEFORE express.json() so it receives the raw body
+app.post("/webhook", express.raw({ type: "application/json" }), (req, res, next) => {
+  registerStripeWebhook(req, res, next);
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -56,6 +61,7 @@ app.use((req, res, next) => {
   console.log("[startup] registering routes");
   const server = await registerRoutes(app);
   console.log("[startup] routes registered");
+  console.log("[startup] Stripe webhook registered on /webhook (raw body)");
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {

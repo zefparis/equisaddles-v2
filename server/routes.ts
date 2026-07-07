@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
@@ -11,6 +11,7 @@ import { insertProductSchema, insertGalleryImageSchema, insertProductImageSchema
 import { sendChatNotificationToAdmin, sendChatResponseToCustomer, sendContactFormEmail, sendInvoiceEmail } from "./services/brevo";
 import { chatStorage } from "./storage/chat";
 import { z } from "zod";
+import { calculateShipping, isAllowedCountry, ALLOWED_COUNTRIES } from "@shared/shipping";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   console.warn('STRIPE_SECRET_KEY not found. Please set it in environment variables.');
@@ -238,24 +239,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Items are required" });
       }
 
-      const amount = items.reduce((sum: number, item: any) => {
-        return sum + (parseFloat(item.price) * item.quantity);
-      }, 0);
+      if (!customerInfo || !customerInfo.country) {
+        return res.status(400).json({ message: "Country is required" });
+      }
+
+      if (!isAllowedCountry(customerInfo.country)) {
+        return res.status(400).json({ message: "Country not supported for shipping" });
+      }
+
+      // Server-side price calculation: fetch products from DB, ignore client prices
+      let subtotal = 0;
+      const validatedItems: Array<{ id: number; name: string; price: string; quantity: number; imageUrl: string | null }> = [];
+
+      for (const item of items) {
+        const product = await storage.getProduct(item.id);
+        if (!product) {
+          return res.status(400).json({ message: `Product ${item.id} not found` });
+        }
+        const unitPrice = parseFloat(product.price);
+        subtotal += unitPrice * item.quantity;
+        const validImageUrl = product.image && 
+          (product.image.startsWith('http://') || product.image.startsWith('https://')) 
+          ? product.image : null;
+        validatedItems.push({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity,
+          imageUrl: validImageUrl,
+        });
+      }
+
+      const shippingCost = calculateShipping(subtotal, customerInfo.country);
+      const totalAmount = subtotal + shippingCost;
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        line_items: items.map((item: any) => {
-          // Valider l'URL de l'image - ne l'inclure que si c'est une URL complète valide
-          const validImageUrl = item.imageUrl && 
-            (item.imageUrl.startsWith('http://') || item.imageUrl.startsWith('https://')) 
-            ? item.imageUrl : null;
-          
+        line_items: validatedItems.map((item) => {
           return {
             price_data: {
               currency: 'eur',
               product_data: {
                 name: item.name,
-                images: validImageUrl ? [validImageUrl] : [],
+                images: item.imageUrl ? [item.imageUrl] : [],
               },
               unit_amount: Math.round(parseFloat(item.price) * 100),
             },
@@ -268,111 +294,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: {
           customerInfo: JSON.stringify({
             ...customerInfo,
-            items: items.map((item: any) => ({
+            items: validatedItems.map((item) => ({
               id: item.id,
               name: item.name,
               price: item.price,
               quantity: item.quantity,
               imageUrl: item.imageUrl
-            }))
+            })),
+            shippingCost: shippingCost.toFixed(2),
           })
         },
         shipping_address_collection: {
-          allowed_countries: ['BE', 'FR', 'NL', 'DE', 'ES', 'IT', 'LU'],
+          allowed_countries: [...ALLOWED_COUNTRIES],
         },
+        shipping_options: shippingCost > 0 ? [{
+          shipping_rate_data: {
+            type: 'fixed_amount',
+            fixed_amount: { amount: Math.round(shippingCost * 100), currency: 'eur' },
+            display_name: 'Livraison standard',
+          },
+        }] : [],
       });
 
-      res.json({ clientSecret: session.url, sessionId: session.id });
+      res.json({ 
+        clientSecret: session.url, 
+        sessionId: session.id,
+        subtotal: subtotal.toFixed(2),
+        shippingCost: shippingCost.toFixed(2),
+        total: totalAmount.toFixed(2),
+      });
     } catch (error: any) {
       console.error("Error creating payment session:", error);
       res.status(500).json({ message: "Error creating payment session: " + error.message });
     }
   });
 
-  // Stripe webhook - SÉCURISÉ avec validation de signature
-  app.post("/webhook", async (req, res) => {
-    try {
-      if (!stripe) {
-        console.error("Stripe not configured for webhook");
-        return res.status(500).json({ message: "Stripe is not configured" });
-      }
-
-      const sig = req.headers['stripe-signature'];
-      
-      if (!sig) {
-        console.error("No Stripe signature found in webhook request");
-        return res.status(400).json({ message: "No signature provided" });
-      }
-
-      // Valider la signature du webhook pour s'assurer qu'il provient de Stripe
-      let event;
-      
-      if (process.env.STRIPE_WEBHOOK_SECRET) {
-        try {
-          event = stripe.webhooks.constructEvent(
-            req.body,
-            sig,
-            process.env.STRIPE_WEBHOOK_SECRET
-          );
-          console.log("✅ Webhook signature verified");
-        } catch (err: any) {
-          console.error("❌ Webhook signature verification failed:", err.message);
-          return res.status(400).json({ message: `Webhook signature verification failed: ${err.message}` });
-        }
-      } else {
-        // Mode développement sans webhook secret (non recommandé en production)
-        console.warn("⚠️ STRIPE_WEBHOOK_SECRET not configured - webhook running without signature verification (DEV MODE ONLY)");
-        event = req.body;
-      }
-
-      // Traiter les événements Stripe
-      switch (event.type) {
-        case 'checkout.session.completed':
-          const session = event.data.object;
-          console.log(`Processing checkout.session.completed: ${session.id}`);
-          
-          const customerInfo = session.metadata?.customerInfo ? 
-            JSON.parse(session.metadata.customerInfo) : {};
-
-          const orderData = {
-            customerName: session.customer_details?.name || customerInfo.name || "",
-            customerEmail: session.customer_details?.email || customerInfo.email || "",
-            customerPhone: session.customer_details?.phone || customerInfo.phone || "",
-            customerAddress: session.customer_details?.address?.line1 || customerInfo.address || "",
-            customerCity: session.customer_details?.address?.city || customerInfo.city || "",
-            customerPostalCode: session.customer_details?.address?.postal_code || customerInfo.postalCode || "",
-            customerCountry: session.customer_details?.address?.country || customerInfo.country || "",
-            items: JSON.stringify(customerInfo.items || []),
-            totalAmount: (session.amount_total / 100).toString(),
-            shippingCost: session.metadata?.shippingCost || "0",
-            status: "paid",
-            stripeSessionId: session.id,
-          };
-
-          await storage.createOrder(orderData);
-          console.log(`✅ Order created for session ${session.id}`);
-          break;
-
-        case 'checkout.session.async_payment_succeeded':
-          console.log(`Async payment succeeded for session: ${event.data.object.id}`);
-          // Gérer les paiements asynchrones réussis
-          break;
-
-        case 'checkout.session.async_payment_failed':
-          console.log(`Async payment failed for session: ${event.data.object.id}`);
-          // Gérer les paiements asynchrones échoués
-          break;
-
-        default:
-          console.log(`Unhandled event type: ${event.type}`);
-      }
-
-      res.json({ received: true });
-    } catch (error: any) {
-      console.error("Webhook processing error:", error);
-      res.status(500).json({ message: "Webhook error: " + error.message });
-    }
-  });
+  // NOTE: The Stripe webhook is registered in server/index.ts BEFORE express.json()
+  // so it receives the raw body. The handler is exported as registerStripeWebhook below.
 
 
   // Test email route
@@ -433,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Verify Stripe session and create order if not exists (pour dev local et backup)
+  // Verify Stripe session and create order if not exists (backup for webhook)
   app.post("/api/verify-session", async (req, res) => {
     try {
       if (!stripe) {
@@ -446,12 +404,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Session ID is required" });
       }
 
-      // Vérifier si la commande existe déjà
+      // Idempotency: check if order already exists for this session
       const existingOrders = await storage.getOrders();
       const existingOrder = existingOrders.find(order => order.stripeSessionId === sessionId);
       
       if (existingOrder) {
-        console.log(`ℹ️ Order already exists for session ${sessionId}`);
         return res.json({ 
           success: true, 
           message: "Order already exists",
@@ -459,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Récupérer la session Stripe
+      // Retrieve the session from Stripe to verify payment
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       
       if (session.payment_status !== 'paid') {
@@ -469,7 +426,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Créer la commande
       const customerInfo = session.metadata?.customerInfo ? 
         JSON.parse(session.metadata.customerInfo) : {};
 
@@ -492,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const order = await storage.createOrder(orderData);
-      console.log(`✅ Order ${order.id} created via session verification (dev/backup mode)`);
+      console.log(`[orders] Order ${order.id} created via session verification`);
       
       res.json({ 
         success: true, 
@@ -615,4 +571,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupChatWebSocket(httpServer, app);
   
   return httpServer;
+}
+
+// Stripe webhook handler — exported and registered in server/index.ts BEFORE express.json()
+// so that req.body is a raw Buffer for signature verification.
+export async function registerStripeWebhook(req: Request, res: Response, _next: NextFunction): Promise<void> {
+  try {
+    if (!stripe) {
+      console.error("[webhook] Stripe is not configured");
+      res.status(500).json({ message: "Stripe is not configured" });
+      return;
+    }
+
+    const sig = req.headers['stripe-signature'];
+
+    if (!sig) {
+      console.error("[webhook] No Stripe signature found");
+      res.status(400).json({ message: "No signature provided" });
+      return;
+    }
+
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const isProduction = process.env.NODE_ENV === "production";
+
+    // In production, STRIPE_WEBHOOK_SECRET is mandatory
+    if (!webhookSecret) {
+      if (isProduction) {
+        console.error("[webhook] STRIPE_WEBHOOK_SECRET is not configured — rejecting webhook in production");
+        res.status(500).json({ message: "Webhook secret not configured" });
+        return;
+      }
+      // Dev mode only: log warning but still reject — never accept unsigned webhooks
+      console.warn("[webhook] STRIPE_WEBHOOK_SECRET not configured — rejecting unsigned webhook (dev mode)");
+      res.status(400).json({ message: "Webhook secret not configured" });
+      return;
+    }
+
+    // Verify signature with raw body
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body as Buffer,
+        sig,
+        webhookSecret
+      );
+    } catch (err: any) {
+      console.error("[webhook] Signature verification failed:", err.message);
+      res.status(400).json({ message: "Webhook signature verification failed" });
+      return;
+    }
+
+    // Process verified events
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+
+        // Idempotency: check if order already exists for this session
+        const existingOrders = await storage.getOrders();
+        const existingOrder = existingOrders.find(order => order.stripeSessionId === session.id);
+
+        if (existingOrder) {
+          console.log(`[webhook] Order already exists for session ${session.id}`);
+          break;
+        }
+
+        const customerInfo = session.metadata?.customerInfo
+          ? JSON.parse(session.metadata.customerInfo)
+          : {};
+
+        const orderData = {
+          customerName: session.customer_details?.name || customerInfo.name || "",
+          customerEmail: session.customer_details?.email || customerInfo.email || "",
+          customerPhone: session.customer_details?.phone || customerInfo.phone || "",
+          customerAddress: session.customer_details?.address?.line1 || customerInfo.address || "",
+          customerCity: session.customer_details?.address?.city || customerInfo.city || "",
+          customerPostalCode: session.customer_details?.address?.postal_code || customerInfo.postalCode || "",
+          customerCountry: session.customer_details?.address?.country || customerInfo.country || "",
+          items: JSON.stringify(customerInfo.items || []),
+          totalAmount: (session.amount_total! / 100).toString(),
+          shippingCost: session.metadata?.shippingCost || "0",
+          status: "paid",
+          stripeSessionId: session.id,
+        };
+
+        await storage.createOrder(orderData);
+        console.log(`[webhook] Order created for session ${session.id}`);
+        break;
+      }
+
+      case 'checkout.session.async_payment_succeeded':
+        console.log(`[webhook] Async payment succeeded for session: ${event.data.object.id}`);
+        break;
+
+      case 'checkout.session.async_payment_failed':
+        console.log(`[webhook] Async payment failed for session: ${event.data.object.id}`);
+        break;
+
+      default:
+        // Unhandled event — acknowledge but don't process
+        break;
+    }
+
+    res.json({ received: true });
+  } catch (error: any) {
+    console.error("[webhook] Processing error:", error.message);
+    res.status(500).json({ message: "Webhook error" });
+  }
 }
