@@ -29,7 +29,7 @@ RUN npm run build
 ENV NODE_ENV=production
 
 # Expose port (Railway will set PORT env var)
-EXPOSE $PORT
+EXPOSE 5000
 
 # Start command - migrations will run at startup
 CMD ["npm", "run", "start:railway"]

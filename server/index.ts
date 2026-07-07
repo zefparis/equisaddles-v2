@@ -16,6 +16,12 @@ app.use(express.urlencoded({ extended: false }));
 // Session management — must be before route registration
 setupSession(app);
 
+// Health check endpoint — registered before all other routes, SPA fallback, and error handlers.
+// Public, independent of Stripe, Brevo, Cloudinary, and admin auth.
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -47,7 +53,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  console.log("[startup] registering routes");
   const server = await registerRoutes(app);
+  console.log("[startup] routes registered");
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) {
@@ -86,13 +94,15 @@ app.use((req, res, next) => {
   }
 
   // Serve the app on the configured port
-  // this serves both the API and the client.
   // Railway sets PORT automatically, fallback to 5000 for local dev
   const port = Number(process.env.PORT) || 5000;
-  // Use 0.0.0.0 in production to accept connections from any IP
-  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-  
+  const host = "0.0.0.0";
+
   server.listen(port, host, () => {
+    console.log(`[startup] server listening on ${host}:${port}`);
     log(`serving on http://${host}:${port}`);
   });
-})();
+})().catch((err) => {
+  console.error("[startup] server failed to start", err.message || err);
+  process.exit(1);
+});

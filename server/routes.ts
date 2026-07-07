@@ -21,15 +21,6 @@ const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SEC
 }) : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoint for Railway
-  app.get("/health", (req, res) => {
-    res.status(200).json({ 
-      status: "healthy", 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
-  });
-
   // Register auth routes (login, logout, session check)
   registerAuthRoutes(app);
 

@@ -11,7 +11,7 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist --external:vite --external:@vitejs/plugin-react --external:@replit/vite-plugin-runtime-error-modal --external:@replit/vite-plugin-cartographer && node deploy-setup.js",
     "build:railway": "npm run build",
     "start": "node dist/index.js",
-    "start:railway": "npm run db:push && node dist/index.js",
+    "start:railway": "node scripts/railway-start.mjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",

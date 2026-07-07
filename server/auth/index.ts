@@ -48,6 +48,7 @@ function validateSessionSecret(isProduction: boolean): string {
 
 const isProduction = process.env.NODE_ENV === "production";
 const sessionSecret = validateSessionSecret(isProduction);
+console.log("[startup] environment validated");
 
 // Reuse the existing PostgreSQL pool from db.ts when available.
 // We create a dedicated pool only if db.ts hasn't been imported yet.

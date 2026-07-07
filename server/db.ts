@@ -23,5 +23,4 @@ const pool = new Pool({
 export const db = drizzle(pool, { schema });
 
 // Test connection
-console.log("✅ PostgreSQL connection established (Railway)");
-console.log("📊 Database URL configured:", process.env.DATABASE_URL.substring(0, 30) + "...");
+console.log("[startup] database configuration detected");
