@@ -1,0 +1,580 @@
+/* Admin Interface Responsive Styles */
+
+/* Mobile First Approach - Base styles for very small screens */
+.admin-container {
+  padding: 0.25rem;
+  min-height: 100vh;
+}
+
+/* Ultra compact tabs for very small screens */
+.admin-tabs-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.125rem;
+  height: auto;
+  padding: 0.125rem;
+  background: transparent;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.admin-tab-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.25rem 0.125rem;
+  font-size: 0.5rem;
+  text-align: center;
+  min-height: 2.25rem;
+  border-radius: 0.25rem;
+  line-height: 0.9;
+  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-tab-icon {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Additional mobile optimizations */
+.admin-header {
+  margin-bottom: 0.75rem;
+}
+
+.admin-header-title {
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.admin-header-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.admin-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Formulaires et cartes responsives */
+.admin-form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-product-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+.admin-product-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.admin-product-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-product-actions button {
+  flex: 1;
+  min-width: auto;
+}
+
+/* Media queries pour différents breakpoints */
+@media (min-width: 320px) and (max-width: 374px) {
+  /* Très petits écrans (320px - 374px) */
+  .admin-tabs-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .admin-tab-trigger {
+    font-size: 0.5rem;
+    padding: 0.25rem 0.125rem;
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 375px) and (max-width: 479px) {
+  /* Petits écrans (375px - 479px) */
+  .admin-tabs-list {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .admin-tab-trigger {
+    font-size: 0.6rem;
+    padding: 0.3rem 0.2rem;
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 639px) {
+  /* Écrans moyens (480px - 639px) */
+  .admin-tabs-list {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .admin-tab-trigger {
+    font-size: 0.65rem;
+    padding: 0.4rem 0.3rem;
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  /* Tablettes petites (640px - 767px) */
+  .admin-tabs-list {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  /* Desktop et tablettes larges (768px+) */
+  .admin-tabs-list {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  .admin-tab-trigger {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+    min-height: 3rem;
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  
+  .admin-product-actions {
+    flex-direction: row;
+  }
+}
+
+.admin-add-button {
+  width: 100%;
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem;
+}
+
+.admin-product-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.admin-product-card {
+  overflow: hidden;
+  border-radius: 0.375rem;
+  transition: box-shadow 0.2s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-product-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.admin-product-image {
+  width: 100%;
+  height: 8rem;
+  object-fit: cover;
+}
+
+.admin-product-content {
+  padding: 0.5rem;
+}
+
+.admin-product-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.2;
+}
+
+.admin-product-meta {
+  font-size: 0.625rem;
+  color: #6b7280;
+  margin-bottom: 0.375rem;
+}
+
+.admin-product-price {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.admin-product-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.625rem;
+  padding: 0.25rem 0.375rem;
+  min-height: 1.75rem;
+}
+
+.admin-product-card {
+  overflow: hidden;
+  border-radius: 0.5rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.admin-product-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.admin-product-image {
+  width: 100%;
+  height: 10rem;
+  object-fit: cover;
+}
+
+.admin-product-content {
+  padding: 0.75rem;
+}
+
+.admin-product-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.admin-product-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.admin-product-price {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.admin-product-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.5rem;
+}
+
+.admin-header {
+  margin-bottom: 1.5rem;
+}
+
+.admin-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-header-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.admin-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-add-button {
+  width: 100%;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Small mobile optimization */
+@media (min-width: 375px) {
+  .admin-tabs-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.125rem;
+  }
+  
+  .admin-tab-trigger {
+    font-size: 0.5625rem;
+    padding: 0.3125rem 0.1875rem;
+    min-height: 2.375rem;
+  }
+  
+  .admin-tab-icon {
+    width: 0.5625rem;
+    height: 0.5625rem;
+  }
+}
+
+/* Medium mobile optimization */
+@media (min-width: 480px) {
+  .admin-tabs-list {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+  
+  .admin-tab-trigger {
+    padding: 0.375rem 0.25rem;
+    font-size: 0.625rem;
+    min-height: 2.5rem;
+    white-space: normal;
+  }
+  
+  .admin-tab-icon {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+  
+  .admin-section-title {
+    font-size: 1rem;
+  }
+  
+  .admin-add-button {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 640px) {
+  .admin-container {
+    padding: 1rem;
+  }
+  
+  .admin-tabs-list {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  .admin-tab-trigger {
+    flex-direction: row;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    min-height: auto;
+  }
+  
+  .admin-tab-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .admin-product-image {
+    height: 12rem;
+  }
+  
+  .admin-product-content {
+    padding: 1rem;
+  }
+  
+  .admin-product-title {
+    font-size: 1rem;
+  }
+  
+  .admin-product-meta {
+    font-size: 0.875rem;
+  }
+  
+  .admin-product-price {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+  }
+  
+  .admin-product-actions {
+    flex-direction: row;
+  }
+  
+  .admin-action-button {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .admin-header-title {
+    flex-direction: row;
+    align-items: center;
+    font-size: 1.875rem;
+  }
+  
+  .admin-header-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .admin-section-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .admin-section-title {
+    font-size: 1.5rem;
+  }
+  
+  .admin-add-button {
+    width: auto;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .admin-container {
+    padding: 2rem;
+  }
+  
+  .admin-tabs-list {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  
+  .admin-product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Large desktop styles */
+@media (min-width: 1280px) {
+  .admin-product-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .admin-product-meta {
+    color: #9ca3af;
+  }
+}
+
+/* Form responsiveness */
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .admin-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.admin-form-full {
+  grid-column: 1 / -1;
+}
+
+/* Orders table responsiveness */
+.admin-orders-card {
+  margin-bottom: 1rem;
+}
+
+.admin-order-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-order-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .admin-order-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 768px) {
+  .admin-order-details {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Chat admin responsiveness */
+.admin-chat-widget {
+  height: 24rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .admin-chat-widget {
+    height: 30rem;
+  }
+}

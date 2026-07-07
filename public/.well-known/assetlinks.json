@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.equisaddles.www.twa",
+      "sha256_cert_fingerprints": [
+        "6E:0E:AE:A3:A7:AF:7A:BF:3B:ED:2F:F3:D4:62:40:72:76:A4:36:12:EA:79:09:52:7C:6E:0C:EC:3B:78:7C:B9"
+      ]
+    }
+  }
+]

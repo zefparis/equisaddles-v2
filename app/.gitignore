@@ -1,0 +1,9 @@
+# Android Build Files
+/build/
+*.iml
+
+# Keystore - Contains sensitive passwords
+keystore.properties
+
+# Local configuration files
+local.properties

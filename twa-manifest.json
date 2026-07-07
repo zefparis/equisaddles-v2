@@ -1,0 +1,51 @@
+{
+  "packageId": "com.equisaddles.www.twa",
+  "host": "www.equisaddles.com",
+  "name": "Equi Saddles - Selles d'équitation premium",
+  "launcherName": "Equi Saddles",
+  "display": "standalone",
+  "themeColor": "#6B4226",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#6B4226",
+  "enableNotifications": true,
+  "startUrl": "/?pwa=true",
+  "iconUrl": "https://www.equisaddles.com/icons/icon-512.png",
+  "maskableIconUrl": "https://www.equisaddles.com/icons/icon-512-maskable.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/home/ia-solution/Téléchargements/equi/android.keystore",
+    "alias": "EquiSaddles"
+  },
+  "appVersionName": "2.0",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://www.equisaddles.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://www.equisaddles.com/",
+  "minSdkVersion": 21,
+  "orientation": "portrait-primary",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "2.0"
+}
