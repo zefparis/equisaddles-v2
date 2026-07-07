@@ -405,8 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Idempotency: check if order already exists for this session
-      const existingOrders = await storage.getOrders();
-      const existingOrder = existingOrders.find(order => order.stripeSessionId === sessionId);
+      const existingOrder = await storage.getOrderByStripeSessionId(sessionId);
       
       if (existingOrder) {
         return res.json({ 
@@ -447,14 +446,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stripeSessionId: session.id,
       };
 
-      const order = await storage.createOrder(orderData);
-      console.log(`[orders] Order ${order.id} created via session verification`);
-      
-      res.json({ 
-        success: true, 
-        message: "Order created successfully",
-        orderId: order.id 
-      });
+      try {
+        const order = await storage.createOrder(orderData);
+        console.log(`[orders] Order ${order.id} created via session verification`);
+        
+        res.json({ 
+          success: true, 
+          message: "Order created successfully",
+          orderId: order.id 
+        });
+      } catch (createError: any) {
+        // PostgreSQL unique_violation (code 23505) — race condition with webhook
+        if (createError.code === '23505') {
+          const raceOrder = await storage.getOrderByStripeSessionId(sessionId);
+          if (raceOrder) {
+            return res.json({ 
+              success: true, 
+              message: "Order already exists",
+              orderId: raceOrder.id 
+            });
+          }
+        }
+        // Re-throw non-23505 errors
+        throw createError;
+      }
     } catch (error: any) {
       console.error("Error verifying session:", error);
       res.status(500).json({ message: "Error verifying session: " + error.message });
@@ -627,8 +642,7 @@ export async function registerStripeWebhook(req: Request, res: Response, _next: 
         const session = event.data.object as Stripe.Checkout.Session;
 
         // Idempotency: check if order already exists for this session
-        const existingOrders = await storage.getOrders();
-        const existingOrder = existingOrders.find(order => order.stripeSessionId === session.id);
+        const existingOrder = await storage.getOrderByStripeSessionId(session.id);
 
         if (existingOrder) {
           console.log(`[webhook] Order already exists for session ${session.id}`);
@@ -654,8 +668,21 @@ export async function registerStripeWebhook(req: Request, res: Response, _next: 
           stripeSessionId: session.id,
         };
 
-        await storage.createOrder(orderData);
-        console.log(`[webhook] Order created for session ${session.id}`);
+        try {
+          await storage.createOrder(orderData);
+          console.log(`[webhook] Order created for session ${session.id}`);
+        } catch (createError: any) {
+          // PostgreSQL unique_violation (code 23505) — race condition with verify-session
+          if (createError.code === '23505') {
+            const raceOrder = await storage.getOrderByStripeSessionId(session.id);
+            if (raceOrder) {
+              console.log(`[webhook] Order already created by verify-session for session ${session.id}`);
+              break;
+            }
+          }
+          // Re-throw non-23505 errors
+          throw createError;
+        }
         break;
       }
 

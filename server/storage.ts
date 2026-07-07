@@ -25,6 +25,7 @@ export interface IStorage {
   // Orders
   getOrders(): Promise<Order[]>;
   getOrder(id: number): Promise<Order | undefined>;
+  getOrderByStripeSessionId(stripeSessionId: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | undefined>;
 }

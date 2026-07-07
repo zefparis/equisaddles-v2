@@ -58,7 +58,7 @@ export const orders = pgTable("orders", {
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).default("0"),
   status: text("status").notNull().default("pending"), // "pending", "paid", "shipped", "delivered"
-  stripeSessionId: text("stripe_session_id"),
+  stripeSessionId: text("stripe_session_id").unique(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

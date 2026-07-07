@@ -138,9 +138,13 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
+  async getOrderByStripeSessionId(stripeSessionId: string): Promise<Order | undefined> {
+    const result = await db.select().from(orders).where(eq(orders.stripeSessionId, stripeSessionId));
+    return result[0];
+  }
+
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
     const result = await db.insert(orders).values(insertOrder).returning();
-    console.log(`✅ Order ${result[0].id} created in database`);
     return result[0];
   }
 
