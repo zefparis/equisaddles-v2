@@ -2,10 +2,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import argon2 from "argon2";
-import { parseCookie } from "cookie";
-import { unsign } from "cookie-signature";
 import type { Express, Request, Response, NextFunction } from "express";
-import type { IncomingMessage } from "http";
 import { z } from "zod";
 import pg from "pg";
 
@@ -104,43 +101,6 @@ const sessionMiddleware = session({
 export function setupSession(app: Express) {
   app.set("trust proxy", isProduction ? 1 : false);
   app.use(sessionMiddleware);
-}
-
-/**
- * Extract and validate admin session from a WebSocket upgrade request.
- * Uses the same session store and secret as the Express middleware.
- * Returns true only if the session has admin.authenticated === true.
- */
-export function isAdminSessionFromWs(request: IncomingMessage): Promise<boolean> {
-  return new Promise((resolve) => {
-    try {
-      const cookieHeader = request.headers.cookie;
-      if (!cookieHeader) {
-        return resolve(false);
-      }
-
-      const cookies = parseCookie(cookieHeader);
-      const signedSid = cookies[SESSION_COOKIE_NAME];
-      if (!signedSid) {
-        return resolve(false);
-      }
-
-      const sidValue = signedSid.startsWith("s:") ? signedSid.slice(2) : signedSid;
-      const sid = unsign(sidValue, sessionSecret);
-      if (!sid || typeof sid !== "string") {
-        return resolve(false);
-      }
-
-      sessionStore.get(sid, (err: any, sessionData: any) => {
-        if (err || !sessionData) {
-          return resolve(false);
-        }
-        resolve(sessionData.admin?.authenticated === true);
-      });
-    } catch {
-      resolve(false);
-    }
-  });
 }
 
 export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {

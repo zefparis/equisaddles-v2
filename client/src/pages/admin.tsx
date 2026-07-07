@@ -21,10 +21,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, MessageCircle, Star, FileText } from "lucide-react";
+import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, Star, FileText } from "lucide-react";
 import ProductImageManager from "../components/admin/product-image-manager";
 import ImageUpload from "../components/admin/image-upload";
-import ChatAdmin from "../components/admin/chat-admin";
 import InvoiceGenerator from "../components/admin/invoice-generator";
 
 const categories = ["Obstacle", "Dressage", "Cross", "Mixte", "Poney", "Accessoires", "Autres"];
@@ -366,10 +365,6 @@ export default function Admin() {
               <ShoppingCart className="admin-tab-icon" />
               <span>Commandes</span>
             </TabsTrigger>
-            <TabsTrigger value="chat" className="admin-tab-trigger">
-              <MessageCircle className="admin-tab-icon" />
-              <span>Chat</span>
-            </TabsTrigger>
           </TabsList>
 
           {/* Products Tab - Unified for both saddles and accessories */}
@@ -688,16 +683,6 @@ export default function Admin() {
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          {/* Chat Support Tab */}
-          <TabsContent value="chat" className="space-y-4 sm:space-y-6">
-            <div className="admin-section-header">
-              <h2 className="admin-section-title text-gray-900 dark:text-gray-100">Chat Support Admin</h2>
-            </div>
-            <div className="admin-chat-widget">
-              <ChatAdmin />
-            </div>
           </TabsContent>
         </Tabs>
 

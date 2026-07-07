@@ -4,12 +4,11 @@ import Stripe from "stripe";
 import { storage } from "./storage";
 import { registerUploadRoutes } from "./routes/upload";
 import { registerCloudinaryUploadRoutes } from "./routes/upload-cloudinary";
-import { setupChatWebSocket } from "./routes/chat";
 import { registerMigrationRoutes } from "./routes/migrations";
 import { registerAuthRoutes, requireAdmin } from "./auth";
 import { insertProductSchema, insertGalleryImageSchema, insertProductImageSchema, insertOrderSchema } from "@shared/schema";
-import { sendChatNotificationToAdmin, sendChatResponseToCustomer, sendContactFormEmail, sendInvoiceEmail } from "./services/brevo";
-import { chatStorage } from "./storage/chat";
+import { sendContactFormEmail, sendInvoiceEmail } from "./services/brevo";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { calculateShipping, isAllowedCountry, ALLOWED_COUNTRIES } from "@shared/shipping";
 
@@ -333,60 +332,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // so it receives the raw body. The handler is exported as registerStripeWebhook below.
 
 
-  // Test email route
-  app.post("/api/test-email", requireAdmin, async (req, res) => {
-    try {
-      const { customerName, customerEmail, message, sessionId } = req.body;
-      
-      const result = await sendChatNotificationToAdmin(
-        customerName || "Test Client",
-        customerEmail || "test@example.com", 
-        message || "Test message",
-        sessionId || "test-session-123"
-      );
-      
-      res.json({ 
-        success: result,
-        message: result ? "Email sent successfully" : "Failed to send email"
-      });
-    } catch (error: any) {
-      res.status(500).json({ message: "Error sending test email: " + error.message });
-    }
+  // Contact form route
+  const contactLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 messages per window per IP
+    message: { success: false, message: "Trop de messages envoyés. Veuillez réessayer plus tard." },
+    standardHeaders: true,
+    legacyHeaders: false,
   });
 
-  // Contact form route
-  app.post("/api/contact", async (req, res) => {
+  const contactSchema = z.object({
+    name: z.string().trim().min(2, "Nom trop court").max(100, "Nom trop long"),
+    email: z.string().trim().email("Format d'email invalide").max(254),
+    subject: z.string().trim().min(2, "Sujet trop court").max(200, "Sujet trop long"),
+    message: z.string().trim().min(10, "Message trop court").max(5000, "Message trop long"),
+  });
+
+  app.post("/api/contact", contactLimiter, async (req, res) => {
     try {
-      const { name, email, subject, message } = req.body;
-      
-      // Validation
-      if (!name || !email || !subject || !message) {
-        return res.status(400).json({ 
+      const parsed = contactSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
           success: false,
-          message: "Tous les champs sont requis" 
+          message: parsed.error.errors[0]?.message || "Données invalides",
         });
       }
-      
-      // Validation email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ 
-          success: false,
-          message: "Format d'email invalide" 
-        });
-      }
-      
+
+      const { name, email, subject, message } = parsed.data;
       const result = await sendContactFormEmail(name, email, subject, message);
-      
-      res.json({ 
-        success: result,
-        message: result ? "Message envoyé avec succès" : "Échec de l'envoi du message"
+
+      if (!result) {
+        return res.status(502).json({
+          success: false,
+          message: "Échec de l'envoi du message. Veuillez réessayer plus tard.",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Message envoyé avec succès",
       });
     } catch (error: any) {
       console.error("Error sending contact form email:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        message: "Erreur lors de l'envoi du message: " + error.message 
+        message: "Erreur lors de l'envoi du message. Veuillez réessayer plus tard.",
       });
     }
   });
@@ -553,38 +543,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API pour récupérer la session d'un utilisateur par email
-  app.get("/api/chat/user-session", async (req, res) => {
-    try {
-      const { email } = req.query;
-      
-      if (!email || typeof email !== 'string') {
-        return res.status(400).json({ message: "Email is required" });
-      }
-
-      // Chercher une session existante pour cet email dans chatStorage
-      const existingSession = await chatStorage.getChatSessionByEmail(email);
-      
-      if (existingSession) {
-        res.json({
-          sessionId: existingSession.sessionId,
-          customerName: existingSession.customerName,
-          customerEmail: email
-        });
-      } else {
-        // Pas de session trouvée pour cet email
-        res.status(404).json({ message: "No session found for this email" });
-      }
-    } catch (error: any) {
-      res.status(500).json({ message: "Error fetching user session: " + error.message });
-    }
-  });
-
   const httpServer = createServer(app);
-  
-  // Setup WebSocket for chat
-  setupChatWebSocket(httpServer, app);
-  
+
   return httpServer;
 }
 

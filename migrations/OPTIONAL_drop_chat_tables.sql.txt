@@ -1,0 +1,18 @@
+-- ============================================================
+-- MIGRATION FACULTATIVE — NE PAS EXÉCUTER AUTOMATIQUEMENT
+-- ============================================================
+-- Le système de chat a été retiré du code (frontend + backend).
+-- Les tables chat_sessions et chat_messages ne sont plus utilisées
+-- par l'application, mais elles sont volontairement CONSERVÉES en
+-- production pour éviter toute perte de données accidentelle.
+--
+-- Pour les supprimer définitivement plus tard, renommer ce fichier
+-- en .sql et l'exécuter MANUELLEMENT après vérification :
+--   1. Vérifier qu'aucune donnée à conserver n'existe :
+--        SELECT COUNT(*) FROM chat_sessions;
+--        SELECT COUNT(*) FROM chat_messages;
+--   2. Faire un backup si nécessaire.
+--   3. Exécuter :
+
+DROP TABLE IF EXISTS chat_messages;
+DROP TABLE IF EXISTS chat_sessions;

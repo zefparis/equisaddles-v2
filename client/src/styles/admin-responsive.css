@@ -565,16 +565,3 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
-
-/* Chat admin responsiveness */
-.admin-chat-widget {
-  height: 24rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-}
-
-@media (min-width: 768px) {
-  .admin-chat-widget {
-    height: 30rem;
-  }
-}

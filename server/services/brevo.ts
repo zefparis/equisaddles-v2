@@ -48,6 +48,16 @@ async function initializeBrevo() {
   };
 }
 
+// Escape HTML special characters to prevent HTML injection in email templates
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export interface EmailData {
   to: string;
   subject: string;
@@ -72,7 +82,7 @@ export async function sendEmail(emailData: EmailData): Promise<boolean> {
 
     const emailPayload = {
       sender: {
-        name: emailData.senderName || "Equi Saddles - Chat Support",
+        name: emailData.senderName || "Equi Saddles",
         email: emailData.senderEmail || "equisaddles@gmail.com"
       },
       to: [{ email: emailData.to }],
@@ -90,108 +100,15 @@ export async function sendEmail(emailData: EmailData): Promise<boolean> {
   }
 }
 
-export async function sendChatNotificationToAdmin(customerName: string, customerEmail: string, message: string, sessionId: string): Promise<boolean> {
-  const adminEmail = "equisaddles@gmail.com"; // Email de l'admin vérifié dans Brevo
-  const domain = process.env.REPLIT_DOMAINS?.split(',')[0] || `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
-  
-  const emailData: EmailData = {
-    to: adminEmail,
-    subject: `🔔 Nouveau message chat - ${customerName}`,
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #8B5A3C; margin-bottom: 20px;">💬 Nouveau message de chat reçu</h2>
-        
-        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-          <h3 style="margin: 0 0 10px 0; color: #333;">Informations du client:</h3>
-          <p style="margin: 5px 0;"><strong>Nom:</strong> ${customerName}</p>
-          <p style="margin: 5px 0;"><strong>Email:</strong> ${customerEmail}</p>
-          <p style="margin: 5px 0;"><strong>Session ID:</strong> ${sessionId}</p>
-        </div>
-        
-        <div style="background-color: #fff; padding: 15px; border-left: 4px solid #8B5A3C; margin-bottom: 20px;">
-          <h3 style="margin: 0 0 10px 0; color: #333;">Message:</h3>
-          <p style="margin: 0; line-height: 1.5;">${message}</p>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://${domain}/admin?tab=chat&session=${sessionId}" 
-             style="background-color: #8B5A3C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-            🔗 Répondre directement à cette conversation
-          </a>
-        </div>
-        
-        <div style="text-align: center; margin-top: 15px;">
-          <a href="https://${domain}/admin" 
-             style="background-color: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 3px; display: inline-block; font-size: 14px; font-weight: bold;">
-            📊 Voir toutes les conversations
-          </a>
-        </div>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        
-        <p style="font-size: 12px; color: #666; text-align: center;">
-          Cette notification a été envoyée automatiquement par le système de chat Equi Saddles.<br>
-          Pour désactiver ces notifications, connectez-vous à votre interface admin.
-        </p>
-      </div>
-    `,
-    senderName: "Equi Saddles - Système de Chat", 
-    senderEmail: "equisaddles@gmail.com"
-  };
-
-  return await sendEmail(emailData);
-}
-
-export async function sendChatResponseToCustomer(customerEmail: string, customerName: string, adminMessage: string): Promise<boolean> {
-  const domain = process.env.REPLIT_DOMAINS?.split(',')[0] || `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
-  
-  const emailData: EmailData = {
-    to: customerEmail,
-    subject: `📩 Réponse de l'équipe Equi Saddles`,
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #8B5A3C; margin-bottom: 20px;">📩 Réponse de notre équipe</h2>
-        
-        <p style="margin-bottom: 20px;">Bonjour ${customerName},</p>
-        
-        <p style="margin-bottom: 20px;">Nous avons répondu à votre message sur notre chat en ligne:</p>
-        
-        <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #8B5A3C; margin-bottom: 20px;">
-          <p style="margin: 0; line-height: 1.5; font-style: italic;">${adminMessage}</p>
-        </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://equisaddles.com/chat?email=${encodeURIComponent(customerEmail)}" 
-             style="background-color: #8B5A3C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-            🔗 Continuer la conversation
-          </a>
-        </div>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        
-        <p style="font-size: 14px; color: #333; margin-bottom: 10px;">
-          <strong>Equi Saddles</strong><br>
-          Spécialiste en selles d'équitation<br>
-          Rue du Vicinal 9, 4141 Louveigné, Belgique<br>
-          Tél: +32 496 94 41 25<br>
-          Email: contact@equisaddles.com
-        </p>
-        
-        <p style="font-size: 12px; color: #666; text-align: center;">
-          Merci de votre confiance. Nous sommes là pour vous accompagner dans vos projets équestres.
-        </p>
-      </div>
-    `,
-    senderName: "Equi Saddles",
-    senderEmail: "equisaddles@gmail.com"
-  };
-
-  return await sendEmail(emailData);
-}
-
 export async function sendContactFormEmail(name: string, email: string, subject: string, message: string): Promise<boolean> {
   const adminEmail = "equisaddles@gmail.com"; // Email de l'admin qui reçoit les messages de contact
-  
+
+  // Échapper toutes les données utilisateur avant interpolation dans le HTML
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safeSubject = escapeHtml(subject);
+  const safeMessage = escapeHtml(message);
+
   const emailData: EmailData = {
     to: adminEmail,
     subject: `📩 Nouveau message de contact - ${subject}`,
@@ -201,20 +118,20 @@ export async function sendContactFormEmail(name: string, email: string, subject:
         
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
           <h3 style="margin: 0 0 10px 0; color: #333;">Informations de l'expéditeur:</h3>
-          <p style="margin: 5px 0;"><strong>Nom:</strong> ${name}</p>
-          <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
-          <p style="margin: 5px 0;"><strong>Sujet:</strong> ${subject}</p>
+          <p style="margin: 5px 0;"><strong>Nom:</strong> ${safeName}</p>
+          <p style="margin: 5px 0;"><strong>Email:</strong> ${safeEmail}</p>
+          <p style="margin: 5px 0;"><strong>Sujet:</strong> ${safeSubject}</p>
         </div>
         
         <div style="background-color: #fff; padding: 15px; border-left: 4px solid #8B5A3C; margin-bottom: 20px;">
           <h3 style="margin: 0 0 10px 0; color: #333;">Message:</h3>
-          <p style="margin: 0; line-height: 1.5; white-space: pre-wrap;">${message}</p>
+          <p style="margin: 0; line-height: 1.5; white-space: pre-wrap;">${safeMessage}</p>
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
-          <a href="mailto:${email}" 
+          <a href="mailto:${safeEmail}" 
              style="background-color: #8B5A3C; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-            📧 Répondre à ${name}
+            📧 Répondre à ${safeName}
           </a>
         </div>
         

@@ -1,6 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Switch, Route, useLocation } from "wouter";
-import { lazy } from "react";
 import { LanguageProvider } from "./hooks/use-language";
 import { CartProvider } from "./hooks/use-cart";
 import { AdminAuthProvider } from "./contexts/AdminAuthContext";
@@ -29,7 +28,6 @@ import Accessories from "./pages/accessories";
 import { queryClient } from "./lib/queryClient";
 import Header from "./components/layout/header";
 import Footer from "./components/layout/footer";
-import ChatButton from "./components/chat/chat-button";
 import BackgroundWrapper from "./components/layout/background-wrapper";
 
 function Router() {
@@ -70,8 +68,6 @@ function Router() {
                   <Route path="/confirmation" component={Confirmation} />
                   <Route path="/gallery" component={Gallery} />
                   <Route path="/contact" component={Contact} />
-                  <Route path="/chat" component={lazy(() => import("@/pages/chat"))} />
-                  <Route path="/simple-chat" component={lazy(() => import("@/pages/simple-chat"))} />
                   <Route path="/support" component={Support} />
                   <Route path="/privacy" component={Privacy} />
                   <Route path="/terms" component={Terms} />
@@ -82,9 +78,6 @@ function Router() {
                 </Switch>
                 </main>
                 <Footer />
-                
-                {/* Chat Button flottant pour toutes les pages publiques */}
-                <ChatButton />
               </div>
             </BackgroundWrapper>
             <Toaster />

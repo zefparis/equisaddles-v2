@@ -27,6 +27,7 @@ export default function Contact() {
     subject: "",
     message: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Scroll to top when page loads
   useEffect(() => {
@@ -43,7 +44,9 @@ export default function Contact() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
@@ -60,7 +63,6 @@ export default function Contact() {
           title: t("contact.successTitle"),
           description: t("contact.successMessage"),
         });
-        // Reset form
         setFormData({
           name: "",
           email: "",
@@ -81,6 +83,8 @@ export default function Contact() {
         description: "Impossible d'envoyer le message. Veuillez réessayer.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -230,9 +234,9 @@ export default function Contact() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
                   <Send className="h-4 w-4 mr-2" />
-                  {t("contact.send")}
+                  {isSubmitting ? "Envoi..." : t("contact.send")}
                 </Button>
               </form>
             </CardContent>

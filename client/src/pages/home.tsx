@@ -10,7 +10,6 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import ProductCard from "../components/product/product-card";
-// Header, Footer et ChatWidget sont maintenant dans App.tsx
 import { ArrowRight, Award, Headphones, FastForward, Star, Gavel, Download, Smartphone } from "lucide-react";
 
 const categories = [
