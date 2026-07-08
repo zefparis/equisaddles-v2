@@ -8,7 +8,7 @@ async function initializeBrevo() {
   // Utiliser fetch directement pour contourner les problèmes d'API
   return {
     sendEmail: async (emailData: any) => {
-      const payload = {
+      const payload: Record<string, any> = {
         sender: emailData.sender,
         to: emailData.to,
         subject: emailData.subject,
@@ -16,10 +16,20 @@ async function initializeBrevo() {
         textContent: emailData.textContent
       };
 
+      if (emailData.replyTo) {
+        payload.replyTo = emailData.replyTo;
+      }
+
+      if (emailData.attachment) {
+        payload.attachment = emailData.attachment;
+      }
+
       console.log('📧 Sending email via Brevo:', {
         to: emailData.to,
         subject: emailData.subject,
-        sender: emailData.sender
+        sender: emailData.sender,
+        replyTo: emailData.replyTo || 'none',
+        hasAttachment: !!emailData.attachment
       });
 
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
