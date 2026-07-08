@@ -6,7 +6,7 @@ import "../styles/admin-responsive.css";
 import { useToast } from "../hooks/use-toast";
 import { scrollToTop } from "../lib/utils";
 import { apiRequest } from "../lib/queryClient";
-import { Product, GalleryImage, Order, insertProductSchema, insertGalleryImageSchema } from "@shared/schema";
+import { Product, GalleryImage, insertProductSchema, insertGalleryImageSchema } from "@shared/schema";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -25,7 +25,7 @@ import { z } from "zod";
 import { Settings, Package, Images, ShoppingCart, Plus, Edit, Trash2, Star, FileText, Search, Eye, Copy, Filter, RotateCcw, ChevronLeft, ChevronRight, AlertCircle, PackageSearch, Play, Video, Youtube, GripVertical } from "lucide-react";
 import ProductImageManager from "../components/admin/product-image-manager";
 import ImageUpload from "../components/admin/image-upload";
-import InvoiceGenerator from "../components/admin/invoice-generator";
+import OrdersManagement from "../components/admin/orders-management";
 
 const categories = ["Obstacle", "Dressage", "Cross", "Mixte", "Poney", "Accessoires", "Autres"];
 const saddleSizes = ["16", "16.5", "17", "17.5", "18", "18.5"];
@@ -60,8 +60,6 @@ export default function Admin() {
   const [imagesDialogOpen, setImagesDialogOpen] = useState(false);
   const [imagesProductId, setImagesProductId] = useState<number | null>(null);
   const [resumeEditAfterImages, setResumeEditAfterImages] = useState(false);
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Search, filters, sort, pagination
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,11 +95,6 @@ export default function Admin() {
   const { data: galleryImages, isLoading: galleryLoading, isError: galleryError, refetch: refetchGallery } = useQuery<GalleryImage[]>({
     queryKey: ["/api/gallery"],
   });
-
-  const { data: orders, isLoading: ordersLoading } = useQuery<Order[]>({
-    queryKey: ["/api/orders"],
-  });
-
 
 
   // Mutations
@@ -1213,152 +1206,7 @@ export default function Admin() {
 
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <h2 className="text-2xl font-semibold">Gestion des commandes</h2>
-
-            {ordersLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="bg-gray-300 h-24 rounded-lg"></div>
-                  </div>
-                ))}
-              </div>
-            ) : orders?.length === 0 ? (
-              <div className="text-center py-16">
-                <ShoppingCart className="h-24 w-24 mx-auto mb-6 text-gray-300" />
-                <h3 className="text-xl font-semibold mb-2">Aucune commande</h3>
-                <p className="text-gray-600">Les commandes apparaîtront ici une fois effectuées.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {orders?.map((order) => (
-                  <Card key={order.id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="font-semibold text-lg">
-                            Commande #{order.id}
-                          </h3>
-                          <p className="text-gray-600">
-                            {order.customerName} - {order.customerEmail}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <Badge 
-                            variant={order.status === 'paid' ? 'default' : 'secondary'}
-                          >
-                            {order.status}
-                          </Badge>
-                          <p className="text-lg font-bold text-primary mt-1">
-                            {parseFloat(order.totalAmount).toFixed(2)} €
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <Separator className="my-4" />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold mb-2">Adresse de livraison</h4>
-                          <p className="text-sm text-gray-600">
-                            {order.customerAddress}<br />
-                            {order.customerCity}, {order.customerPostalCode}<br />
-                            {order.customerCountry}
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold mb-2">Date de commande</h4>
-                          <p className="text-sm text-gray-600">
-                            {new Date(order.createdAt!).toLocaleDateString('fr-FR', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Articles commandés */}
-                      <div className="mt-4">
-                        <h4 className="font-semibold mb-3">Articles commandés</h4>
-                        {(() => {
-                          try {
-                            const items = JSON.parse(order.items);
-                            if (!items || items.length === 0) {
-                              return (
-                                <p className="text-sm text-gray-500 italic">
-                                  Aucun article dans cette commande
-                                </p>
-                              );
-                            }
-                            return (
-                              <div className="space-y-2">
-                                {items.map((item: any, index: number) => (
-                                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    {item.imageUrl && (
-                                      <img 
-                                        src={item.imageUrl} 
-                                        alt={item.name}
-                                        className="w-16 h-16 object-cover rounded"
-                                      />
-                                    )}
-                                    <div className="flex-1">
-                                      <p className="font-medium">{item.name}</p>
-                                      <p className="text-sm text-gray-600">
-                                        Quantité: {item.quantity}
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="font-semibold text-primary">
-                                        {parseFloat(item.price).toFixed(2)} €
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        Total: {(parseFloat(item.price) * item.quantity).toFixed(2)} €
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          } catch (e) {
-                            return (
-                              <p className="text-sm text-red-500">
-                                Erreur lors du chargement des articles
-                              </p>
-                            );
-                          }
-                        })()}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-4 flex gap-2">
-                        <Button
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setInvoiceDialogOpen(true);
-                          }}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Générer facture
-                        </Button>
-                      </div>
-
-                      {/* Contact Info for Manual Processing */}
-                      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <h4 className="font-semibold mb-2 text-blue-700 dark:text-blue-300">Action requise</h4>
-                        <p className="text-sm text-blue-600 dark:text-blue-400">
-                          Contactez le client pour organiser la livraison ou la récupération de la commande.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            <OrdersManagement />
           </TabsContent>
         </Tabs>
 
@@ -1822,15 +1670,6 @@ export default function Admin() {
             )}
           </DialogContent>
         </Dialog>
-
-        {/* Invoice Generator Dialog */}
-        {selectedOrder && (
-          <InvoiceGenerator
-            order={selectedOrder}
-            open={invoiceDialogOpen}
-            onOpenChange={setInvoiceDialogOpen}
-          />
-        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>

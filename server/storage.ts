@@ -1,4 +1,4 @@
-import type { Product, InsertProduct, ProductImage, InsertProductImage, GalleryImage, InsertGalleryImage, Order, InsertOrder } from "@shared/schema";
+import type { Product, InsertProduct, ProductImage, InsertProductImage, GalleryImage, InsertGalleryImage, Order, InsertOrder, OrderItem, InsertOrderItem, Quote, InsertQuote, QuoteItem, InsertQuoteItem } from "@shared/schema";
 
 export interface IStorage {
   // Products
@@ -31,6 +31,25 @@ export interface IStorage {
   getOrderByStripeSessionId(stripeSessionId: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | undefined>;
+
+  // Order Items
+  getOrderItems(orderId: number): Promise<OrderItem[]>;
+  createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+  createOrderItems(items: InsertOrderItem[]): Promise<OrderItem[]>;
+
+  // Quotes
+  getQuotes(): Promise<Quote[]>;
+  getQuote(id: number): Promise<Quote | undefined>;
+  createQuote(quote: InsertQuote): Promise<Quote>;
+  updateQuote(id: number, quote: Partial<InsertQuote>): Promise<Quote | undefined>;
+
+  // Quote Items
+  getQuoteItems(quoteId: number): Promise<QuoteItem[]>;
+  createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
+  createQuoteItems(items: InsertQuoteItem[]): Promise<QuoteItem[]>;
+
+  // Document Numbering
+  generateDocumentNumber(type: string): Promise<string>;
 }
 
 import { postgresStorage } from "./postgres-storage";

@@ -6,6 +6,7 @@ import { registerUploadRoutes } from "./routes/upload";
 import { registerCloudinaryUploadRoutes } from "./routes/upload-cloudinary";
 import { registerMigrationRoutes } from "./routes/migrations";
 import { registerAuthRoutes, requireAdmin } from "./auth";
+import { registerCommerceRoutes } from "./routes/commerce";
 import { insertProductSchema, insertGalleryImageSchema, insertProductImageSchema, insertOrderSchema } from "@shared/schema";
 import { sendContactFormEmail, sendInvoiceEmail } from "./services/brevo";
 import rateLimit from "express-rate-limit";
@@ -29,6 +30,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register upload routes (Cloudinary for persistent storage)
   registerCloudinaryUploadRoutes(app);
+
+  // Register commerce routes (orders, quotes, PDF, emails)
+  registerCommerceRoutes(app);
   
   // Products API
   app.get("/api/products", async (req, res) => {
@@ -463,6 +467,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (session.total_details.amount_shipping / 100).toString() : "0",
         status: "paid",
         stripeSessionId: session.id,
+        source: "stripe" as const,
+        paymentStatus: "paid",
+        orderStatus: "confirmed",
+        customerFirstName: customerInfo.firstName || "",
+        customerLastName: customerInfo.lastName || "",
+        billingAddress: session.customer_details?.address?.line1 || customerInfo.address || "",
+        shippingAddress: session.customer_details?.address?.line1 || customerInfo.address || "",
+        country: session.customer_details?.address?.country || customerInfo.country || "",
+        subtotal: ((session.amount_total! - (session.total_details?.amount_shipping || 0)) / 100).toString(),
+        currency: (session.currency || "EUR").toUpperCase(),
       };
 
       try {
@@ -495,7 +509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send invoice email
+  // Send invoice email (legacy route — kept for backward compat, delegates to commerce route logic)
   app.post("/api/send-invoice", requireAdmin, async (req, res) => {
     try {
       const { orderId, customerEmail, customerName } = req.body;
@@ -507,7 +521,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Récupérer la commande depuis la base de données
       const order = await storage.getOrder(orderId);
       
       if (!order) {
@@ -517,22 +530,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Parser les items
-      let items = [];
+      let items: Array<{ name: string; quantity: number; price: string }> = [];
       try {
-        items = JSON.parse(order.items);
+        const parsed = JSON.parse(order.items);
+        items = parsed.map((item: any) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        }));
       } catch (e) {
         items = [];
       }
 
-      // Calculer les totaux
       const subtotal = items.reduce((sum: number, item: any) => 
         sum + (parseFloat(item.price) * item.quantity), 0
       );
       const shipping = parseFloat(order.shippingCost || "0");
+      const discount = parseFloat(order.discountAmount || "0");
+      const tax = parseFloat(order.taxAmount || "0");
       const total = parseFloat(order.totalAmount);
 
-      // Formater la date
       const orderDate = order.createdAt 
         ? new Date(order.createdAt).toLocaleDateString('fr-FR', {
             year: 'numeric',
@@ -541,22 +558,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         : new Date().toLocaleDateString('fr-FR');
 
-      // Envoyer l'email
+      const invoiceNumber = `ES-FAC-${new Date().getFullYear()}-${String(order.id).padStart(4, '0')}`;
+
       const result = await sendInvoiceEmail(customerName, customerEmail, {
         orderId: order.id,
-        items: items.map((item: any) => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price
-        })),
+        invoiceNumber,
+        items,
         subtotal,
         shipping,
+        discount,
+        tax,
         total,
         address: order.customerAddress,
         city: order.customerCity,
         postalCode: order.customerPostalCode,
         country: order.customerCountry,
-        orderDate
+        orderDate,
+        paymentStatus: order.paymentStatus || (order.status === "paid" ? "paid" : "unpaid"),
       });
 
       res.json({ 
@@ -655,6 +673,16 @@ export async function registerStripeWebhook(req: Request, res: Response, _next: 
           shippingCost: session.metadata?.shippingCost || "0",
           status: "paid",
           stripeSessionId: session.id,
+          source: "stripe" as const,
+          paymentStatus: "paid",
+          orderStatus: "confirmed",
+          customerFirstName: customerInfo.firstName || "",
+          customerLastName: customerInfo.lastName || "",
+          billingAddress: session.customer_details?.address?.line1 || customerInfo.address || "",
+          shippingAddress: session.customer_details?.address?.line1 || customerInfo.address || "",
+          country: session.customer_details?.address?.country || customerInfo.country || "",
+          subtotal: ((session.amount_total! - (session.total_details?.amount_shipping || 0)) / 100).toString(),
+          currency: (session.currency || "EUR").toUpperCase(),
         };
 
         try {
