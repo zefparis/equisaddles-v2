@@ -66,10 +66,14 @@ export interface EmailData {
   senderName?: string;
   senderEmail?: string;
   replyToEmail?: string;
+  replyToName?: string;
   attachment?: { name: string; content: string };
 }
 
-const SHOP_EMAIL = "contact@equisaddles.com";
+const DEFAULT_SENDER_NAME = process.env.BREVO_SENDER_NAME || "Equi Saddles";
+const DEFAULT_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || "contact@equisaddles.com";
+const DEFAULT_REPLY_TO_EMAIL = process.env.BREVO_REPLY_TO || "contact@equisaddles.com";
+const CONTACT_RECIPIENT_EMAIL = process.env.CONTACT_RECIPIENT_EMAIL || "contact@equisaddles.com";
 
 export async function sendEmail(emailData: EmailData): Promise<boolean> {
   try {
@@ -86,14 +90,14 @@ export async function sendEmail(emailData: EmailData): Promise<boolean> {
 
     const emailPayload: Record<string, any> = {
       sender: {
-        name: emailData.senderName || "Equi Saddles",
-        email: emailData.senderEmail || "equisaddles@gmail.com"
+        name: emailData.senderName || DEFAULT_SENDER_NAME,
+        email: emailData.senderEmail || DEFAULT_SENDER_EMAIL
       },
       to: [{ email: emailData.to }],
       subject: emailData.subject,
       htmlContent: emailData.htmlContent,
       textContent: emailData.textContent || emailData.htmlContent.replace(/<[^>]*>/g, ''),
-      replyTo: { email: emailData.replyToEmail || SHOP_EMAIL, name: "Equi Saddles" },
+      replyTo: { email: emailData.replyToEmail || DEFAULT_REPLY_TO_EMAIL, name: emailData.replyToName || DEFAULT_SENDER_NAME },
     };
 
     if (emailData.attachment) {
@@ -110,8 +114,6 @@ export async function sendEmail(emailData: EmailData): Promise<boolean> {
 }
 
 export async function sendContactFormEmail(name: string, email: string, subject: string, message: string): Promise<boolean> {
-  const adminEmail = "equisaddles@gmail.com"; // Email de l'admin qui reçoit les messages de contact
-
   // Échapper toutes les données utilisateur avant interpolation dans le HTML
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(email);
@@ -119,7 +121,7 @@ export async function sendContactFormEmail(name: string, email: string, subject:
   const safeMessage = escapeHtml(message);
 
   const emailData: EmailData = {
-    to: adminEmail,
+    to: CONTACT_RECIPIENT_EMAIL,
     subject: `📩 Nouveau message de contact - ${subject}`,
     htmlContent: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
@@ -151,8 +153,10 @@ export async function sendContactFormEmail(name: string, email: string, subject:
         </p>
       </div>
     `,
-    senderName: "Equi Saddles - Formulaire de Contact", 
-    senderEmail: "equisaddles@gmail.com"
+    senderName: DEFAULT_SENDER_NAME,
+    senderEmail: DEFAULT_SENDER_EMAIL,
+    replyToEmail: email,
+    replyToName: name,
   };
 
   return await sendEmail(emailData);
@@ -277,9 +281,9 @@ export async function sendInvoiceEmail(customerName: string, customerEmail: stri
         </div>
       </div>
     `,
-    senderName: "Equi Saddles",
-    senderEmail: "equisaddles@gmail.com",
-    replyToEmail: SHOP_EMAIL,
+    senderName: DEFAULT_SENDER_NAME,
+    senderEmail: DEFAULT_SENDER_EMAIL,
+    replyToEmail: DEFAULT_REPLY_TO_EMAIL,
     attachment: orderData.pdfAttachment,
   };
 
@@ -375,9 +379,9 @@ export async function sendQuoteEmail(customerName: string, customerEmail: string
         </div>
       </div>
     `,
-    senderName: "Equi Saddles",
-    senderEmail: "equisaddles@gmail.com",
-    replyToEmail: SHOP_EMAIL,
+    senderName: DEFAULT_SENDER_NAME,
+    senderEmail: DEFAULT_SENDER_EMAIL,
+    replyToEmail: DEFAULT_REPLY_TO_EMAIL,
     attachment: quoteData.pdfAttachment,
   };
 
@@ -418,9 +422,9 @@ export async function sendOrderConfirmationEmail(customerName: string, customerE
         </div>
       </div>
     `,
-    senderName: "Equi Saddles",
-    senderEmail: "equisaddles@gmail.com",
-    replyToEmail: SHOP_EMAIL,
+    senderName: DEFAULT_SENDER_NAME,
+    senderEmail: DEFAULT_SENDER_EMAIL,
+    replyToEmail: DEFAULT_REPLY_TO_EMAIL,
   };
 
   return await sendEmail(emailData);
@@ -463,9 +467,9 @@ export async function sendShippingNotificationEmail(customerName: string, custom
         </div>
       </div>
     `,
-    senderName: "Equi Saddles",
-    senderEmail: "equisaddles@gmail.com",
-    replyToEmail: SHOP_EMAIL,
+    senderName: DEFAULT_SENDER_NAME,
+    senderEmail: DEFAULT_SENDER_EMAIL,
+    replyToEmail: DEFAULT_REPLY_TO_EMAIL,
   };
 
   return await sendEmail(emailData);
